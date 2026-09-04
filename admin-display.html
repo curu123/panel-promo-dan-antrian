@@ -3,32 +3,38 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RK CELL • Admin Display</title>
+<title>RK CELL • Admin Promo</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{box-sizing:border-box} body{margin:0;font-family:Arial,sans-serif;background:#0b1220;color:#fff}
-.wrap{max-width:760px;margin:auto;padding:20px} .card{background:#121b2c;border:1px solid #27344b;border-radius:18px;padding:18px;margin-bottom:16px}
-h1{font-size:24px;margin:0 0 6px} .muted{color:#9fb0c7} label{display:block;font-weight:800;margin:14px 0 7px}
+*{box-sizing:border-box} body{margin:0;background:#0b1220;color:#fff;font-family:Arial,sans-serif}
+.wrap{max-width:760px;margin:auto;padding:18px}
+.card{background:#121b2c;border:1px solid #27344b;border-radius:18px;padding:18px;margin-bottom:16px}
+h1{margin:0 0 6px;font-size:24px} .muted{color:#9fb0c7;line-height:1.5}
+label{display:block;font-weight:900;margin:14px 0 7px}
 input,select,button{width:100%;padding:13px;border-radius:12px;border:1px solid #31415d;background:#0d1626;color:#fff;font-size:15px}
-button{font-weight:900;cursor:pointer} .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.primary{background:#ffcf33;color:#101010;border:none} .green{background:#2ecc71;color:#07150d;border:none} .red{background:#ff5c5c;color:#fff;border:none}
+button{font-weight:900;cursor:pointer} button:disabled{opacity:.55}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.primary{background:#ffcf33;color:#111;border:none} .green{background:#2ecc71;color:#07150d;border:none}
+.red{background:#ff5c5c;color:#fff;border:none} .gray{background:#1b2a42}
 .preview{width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-top:12px}
-.preview img{width:100%;height:100%;object-fit:contain} .status{padding:10px 12px;border-radius:10px;background:#0d1626;margin-top:10px;font-weight:700}
-.hidden{display:none!important} @media(max-width:600px){.row{grid-template-columns:1fr}}
+.preview img{width:100%;height:100%;object-fit:contain}
+.status{padding:11px 12px;border-radius:10px;background:#0d1626;margin-top:10px;font-weight:800;line-height:1.45}
+.hidden{display:none!important}
+@media(max-width:600px){.row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>RK CELL • ADMIN DISPLAY</h1>
-    <div class="muted">Atur monitor antara MODE ANTREAN dan MODE PROMO.</div>
+    <h1>RK CELL • ADMIN PROMO</h1>
+    <div class="muted">Sistem sederhana: hanya satu promo aktif. Upload baru otomatis mengganti promo lama. Hapus promo akan menghapus file dari Supabase Storage dan mengembalikan monitor ke ANTREAN.</div>
   </div>
 
   <div class="card" id="loginCard">
     <label>Email Admin</label>
-    <input id="email" type="email" placeholder="admin@email.com">
+    <input id="email" type="email" autocomplete="username" placeholder="Email admin">
     <label>Password</label>
-    <input id="password" type="password" placeholder="Password">
+    <input id="password" type="password" autocomplete="current-password" placeholder="Password">
     <button id="loginBtn" class="primary" style="margin-top:14px">LOGIN ADMIN</button>
     <div class="status" id="loginStatus">Belum login</div>
   </div>
@@ -39,20 +45,24 @@ button{font-weight:900;cursor:pointer} .row{display:grid;grid-template-columns:1
       <button id="promoBtn" class="red">AKTIFKAN PROMO</button>
     </div>
 
-    <label>Upload Gambar Promo</label>
-    <input id="promoFile" type="file" accept="image/png,image/jpeg,image/webp">
+    <label>Pilih File Promo</label>
+    <input id="promoFile" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,.svg,image/jpeg,image/png,image/webp,image/gif,image/svg+xml">
 
-    <label>Mode Gambar</label>
+    <label>Tampilan Gambar</label>
     <select id="promoFit">
       <option value="contain">UTUH • TIDAK TERPOTONG</option>
       <option value="cover">PENUH LAYAR • BOLEH TERPOTONG</option>
     </select>
 
-    <button id="uploadBtn" class="primary" style="margin-top:14px">UPLOAD & SIMPAN PROMO</button>
+    <button id="uploadBtn" class="primary" style="margin-top:14px">UPLOAD & TAMPILKAN PROMO</button>
+    <button id="deleteBtn" class="gray" style="margin-top:10px">HAPUS PROMO</button>
 
-    <div class="preview"><img id="previewImg" style="display:none"><span id="previewEmpty">Belum ada promo</span></div>
-    <div class="status" id="adminStatus">Memuat...</div>
+    <div class="preview">
+      <img id="previewImg" style="display:none" alt="Preview promo">
+      <span id="previewEmpty">Belum ada promo</span>
+    </div>
 
+    <div class="status" id="adminStatus">Memuat status...</div>
     <button id="logoutBtn" style="margin-top:14px">LOGOUT</button>
   </div>
 </div>
@@ -63,86 +73,181 @@ const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const SETTINGS_ID='rk-main-display';
 const BUCKET='promo-assets';
+const FIXED_PATH='active/promo-current';
 const $=id=>document.getElementById(id);
 
 function isAdminSession(session){
-  const user=session?.user;
-  const role=String(
-    user?.app_metadata?.role ??
-    user?.user_metadata?.role ??
-    ''
-  ).toLowerCase();
-  return role==='admin';
+  return String(session?.user?.app_metadata?.role || '').toLowerCase()==='admin';
 }
 
 async function refreshSession(){
   const {data}=await sb.auth.getSession();
   const session=data.session;
-  const logged=!!session;
-  const admin=isAdminSession(session);
-
-  $('loginCard').classList.toggle('hidden',logged && admin);
-  $('adminCard').classList.toggle('hidden',!logged || !admin);
-
-  if(logged && !admin){
+  if(!session){
     $('loginCard').classList.remove('hidden');
-    $('loginStatus').textContent='AKSES DITOLAK • AKUN INI BUKAN ADMIN';
-    await sb.auth.signOut();
+    $('adminCard').classList.add('hidden');
     return;
   }
-
-  if(logged && admin){
-    $('loginCard').classList.add('hidden');
-    $('adminCard').classList.remove('hidden');
-    loadSettings();
+  if(!isAdminSession(session)){
+    $('loginStatus').textContent='AKSES DITOLAK • AKUN BUKAN ADMIN';
+    await sb.auth.signOut();
+    $('loginCard').classList.remove('hidden');
+    $('adminCard').classList.add('hidden');
+    return;
   }
+  $('loginCard').classList.add('hidden');
+  $('adminCard').classList.remove('hidden');
+  await loadSettings();
 }
+
 $('loginBtn').onclick=async()=>{
   $('loginStatus').textContent='Login...';
-  const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
-  $('loginStatus').textContent=error?'Gagal: '+error.message:'Memeriksa hak akses admin...';
-  if(!error)refreshSession();
+  const {error}=await sb.auth.signInWithPassword({
+    email:$('email').value.trim(),
+    password:$('password').value
+  });
+  $('loginStatus').textContent=error?'Gagal: '+error.message:'Login berhasil';
+  if(!error) refreshSession();
 };
-$('logoutBtn').onclick=async()=>{await sb.auth.signOut();refreshSession()};
+
+$('logoutBtn').onclick=async()=>{ await sb.auth.signOut(); refreshSession(); };
 
 async function loadSettings(){
   const {data,error}=await sb.from('display_settings').select('*').eq('id',SETTINGS_ID).maybeSingle();
-  if(error){$('adminStatus').textContent='Error: '+error.message;return}
+  if(error){$('adminStatus').textContent='Error: '+error.message; return;}
   if(data){
     $('promoFit').value=data.promo_fit||'contain';
     $('adminStatus').textContent='MODE AKTIF: '+String(data.mode||'queue').toUpperCase();
-    if(data.promo_url){$('previewImg').src=data.promo_url;$('previewImg').style.display='block';$('previewEmpty').style.display='none'}
+    if(data.promo_url){
+      $('previewImg').src=data.promo_url+'?v='+Date.now();
+      $('previewImg').style.display='block';
+      $('previewEmpty').style.display='none';
+    } else {
+      $('previewImg').removeAttribute('src');
+      $('previewImg').style.display='none';
+      $('previewEmpty').style.display='block';
+    }
   }
 }
+
 async function setMode(mode){
-  const {error}=await sb.from('display_settings').upsert({id:SETTINGS_ID,mode,updated_at:new Date().toISOString()});
+  const {error}=await sb.from('display_settings').upsert({
+    id:SETTINGS_ID,mode,updated_at:new Date().toISOString()
+  });
   $('adminStatus').textContent=error?'Gagal: '+error.message:'MODE AKTIF: '+mode.toUpperCase();
 }
 $('queueBtn').onclick=()=>setMode('queue');
 $('promoBtn').onclick=()=>setMode('promo');
 
 $('promoFile').onchange=()=>{
-  const f=$('promoFile').files[0];if(!f)return;
-  $('previewImg').src=URL.createObjectURL(f);$('previewImg').style.display='block';$('previewEmpty').style.display='none';
-};
-$('uploadBtn').onclick=async()=>{
   const f=$('promoFile').files[0];
-  if(!f){$('adminStatus').textContent='Pilih gambar promo terlebih dahulu.';return}
-  $('adminStatus').textContent='Mengupload promo...';
-  const ext=(f.name.split('.').pop()||'jpg').toLowerCase();
-  const path=`rk-main/promo-${Date.now()}.${ext}`;
-  const {error:upErr}=await sb.storage.from(BUCKET).upload(path,f,{upsert:false,contentType:f.type||undefined});
-  if(upErr){$('adminStatus').textContent='Upload gagal: '+upErr.message;return}
-  const {data:urlData}=sb.storage.from(BUCKET).getPublicUrl(path);
-  const promo_url=urlData.publicUrl;
-  const promo_fit=$('promoFit').value;
-  const {error}=await sb.from('display_settings').upsert({
-    id:SETTINGS_ID,promo_url,promo_fit,updated_at:new Date().toISOString()
-  });
-  if(error){$('adminStatus').textContent='Simpan gagal: '+error.message;return}
-  $('previewImg').src=promo_url;
-  $('adminStatus').textContent='Promo berhasil disimpan. Klik AKTIFKAN PROMO untuk menampilkan.';
+  if(!f)return;
+  $('previewImg').src=URL.createObjectURL(f);
+  $('previewImg').style.display='block';
+  $('previewEmpty').style.display='none';
 };
+
+function extFromFile(file){
+  const n=(file.name||'').toLowerCase();
+  const m=n.match(/\.(jpg|jpeg|png|webp|gif|svg)$/);
+  return m ? m[1] : 'jpg';
+}
+
+async function deleteCurrentStorageObjects(){
+  const {data,error}=await sb.storage.from(BUCKET).list('active',{limit:100});
+  if(error) throw error;
+  const paths=(data||[]).filter(x=>x.name && !x.name.endsWith('/')).map(x=>'active/'+x.name);
+  if(paths.length){
+    const {error:removeError}=await sb.storage.from(BUCKET).remove(paths);
+    if(removeError) throw removeError;
+  }
+}
+
+$('uploadBtn').onclick=async()=>{
+  const file=$('promoFile').files[0];
+  if(!file){$('adminStatus').textContent='Pilih file promo terlebih dahulu.';return;}
+  if(file.size>8*1024*1024){$('adminStatus').textContent='File terlalu besar. Maksimal 8 MB.';return;}
+
+  const allowed=['image/jpeg','image/png','image/webp','image/gif','image/svg+xml'];
+  if(file.type && !allowed.includes(file.type)){
+    $('adminStatus').textContent='Format tidak didukung.';
+    return;
+  }
+
+  $('uploadBtn').disabled=true;
+  $('deleteBtn').disabled=true;
+  $('adminStatus').textContent='Mengganti promo...';
+
+  try{
+    // Hapus file promo lama agar Storage tidak menumpuk.
+    await deleteCurrentStorageObjects();
+
+    const ext=extFromFile(file);
+    const path=FIXED_PATH+'.'+ext;
+
+    const {error:uploadError}=await sb.storage.from(BUCKET).upload(path,file,{
+      cacheControl:'60',
+      upsert:true,
+      contentType:file.type||undefined
+    });
+    if(uploadError) throw uploadError;
+
+    const {data:pub}=sb.storage.from(BUCKET).getPublicUrl(path);
+    const publicUrl=pub.publicUrl+'?v='+Date.now();
+
+    const {error:dbError}=await sb.from('display_settings').upsert({
+      id:SETTINGS_ID,
+      mode:'promo',
+      promo_url:publicUrl,
+      promo_fit:$('promoFit').value,
+      promo_path:path,
+      updated_at:new Date().toISOString()
+    });
+    if(dbError) throw dbError;
+
+    $('previewImg').src=publicUrl;
+    $('previewImg').style.display='block';
+    $('previewEmpty').style.display='none';
+    $('adminStatus').textContent='BERHASIL • PROMO LANGSUNG AKTIF';
+  }catch(e){
+    $('adminStatus').textContent='Gagal: '+(e?.message||e);
+  }finally{
+    $('uploadBtn').disabled=false;
+    $('deleteBtn').disabled=false;
+  }
+};
+
+$('deleteBtn').onclick=async()=>{
+  if(!confirm('Hapus promo aktif dan kembali ke ANTREAN?')) return;
+  $('uploadBtn').disabled=true;
+  $('deleteBtn').disabled=true;
+  $('adminStatus').textContent='Menghapus promo...';
+
+  try{
+    await deleteCurrentStorageObjects();
+
+    const {error}=await sb.from('display_settings').upsert({
+      id:SETTINGS_ID,
+      mode:'queue',
+      promo_url:null,
+      promo_path:null,
+      updated_at:new Date().toISOString()
+    });
+    if(error) throw error;
+
+    $('promoFile').value='';
+    $('previewImg').removeAttribute('src');
+    $('previewImg').style.display='none';
+    $('previewEmpty').style.display='block';
+    $('adminStatus').textContent='PROMO DIHAPUS • MONITOR KEMBALI KE ANTREAN';
+  }catch(e){
+    $('adminStatus').textContent='Gagal hapus: '+(e?.message||e);
+  }finally{
+    $('uploadBtn').disabled=false;
+    $('deleteBtn').disabled=false;
+  }
+};
+
 sb.auth.onAuthStateChange(()=>refreshSession());
 refreshSession();
 </script>
