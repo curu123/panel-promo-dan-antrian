@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RK CELL • Admin Display</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box} body{margin:0;font-family:Arial,sans-serif;background:#0b1220;color:#fff}
+.wrap{max-width:760px;margin:auto;padding:20px} .card{background:#121b2c;border:1px solid #27344b;border-radius:18px;padding:18px;margin-bottom:16px}
+h1{font-size:24px;margin:0 0 6px} .muted{color:#9fb0c7} label{display:block;font-weight:800;margin:14px 0 7px}
+input,select,button{width:100%;padding:13px;border-radius:12px;border:1px solid #31415d;background:#0d1626;color:#fff;font-size:15px}
+button{font-weight:900;cursor:pointer} .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.primary{background:#ffcf33;color:#101010;border:none} .green{background:#2ecc71;color:#07150d;border:none} .red{background:#ff5c5c;color:#fff;border:none}
+.preview{width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-top:12px}
+.preview img{width:100%;height:100%;object-fit:contain} .status{padding:10px 12px;border-radius:10px;background:#0d1626;margin-top:10px;font-weight:700}
+.hidden{display:none!important} @media(max-width:600px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>RK CELL • ADMIN DISPLAY</h1>
+    <div class="muted">Atur monitor antara MODE ANTREAN dan MODE PROMO.</div>
+  </div>
+
+  <div class="card" id="loginCard">
+    <label>Email Admin</label>
+    <input id="email" type="email" placeholder="admin@email.com">
+    <label>Password</label>
+    <input id="password" type="password" placeholder="Password">
+    <button id="loginBtn" class="primary" style="margin-top:14px">LOGIN ADMIN</button>
+    <div class="status" id="loginStatus">Belum login</div>
+  </div>
+
+  <div class="card hidden" id="adminCard">
+    <div class="row">
+      <button id="queueBtn" class="green">AKTIFKAN ANTREAN</button>
+      <button id="promoBtn" class="red">AKTIFKAN PROMO</button>
+    </div>
+
+    <label>Upload Gambar Promo</label>
+    <input id="promoFile" type="file" accept="image/png,image/jpeg,image/webp">
+
+    <label>Mode Gambar</label>
+    <select id="promoFit">
+      <option value="contain">UTUH • TIDAK TERPOTONG</option>
+      <option value="cover">PENUH LAYAR • BOLEH TERPOTONG</option>
+    </select>
+
+    <button id="uploadBtn" class="primary" style="margin-top:14px">UPLOAD & SIMPAN PROMO</button>
+
+    <div class="preview"><img id="previewImg" style="display:none"><span id="previewEmpty">Belum ada promo</span></div>
+    <div class="status" id="adminStatus">Memuat...</div>
+
+    <button id="logoutBtn" style="margin-top:14px">LOGOUT</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL="https://qobrmwqrawkixdjevcji.supabase.co";
+const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvYnJtd3FyYXdraXhkamV2Y2ppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzMzU4NjYsImV4cCI6MjA4OTkxMTg2Nn0.NZTsT_Aola1cGOr1H_ey7OvPZJUWOy8G6-tmSDWPox0";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const SETTINGS_ID='rk-main-display';
+const BUCKET='promo-assets';
+const $=id=>document.getElementById(id);
+
+async function refreshSession(){
+  const {data}=await sb.auth.getSession();
+  const logged=!!data.session;
+  $('loginCard').classList.toggle('hidden',logged);
+  $('adminCard').classList.toggle('hidden',!logged);
+  if(logged)loadSettings();
+}
+$('loginBtn').onclick=async()=>{
+  $('loginStatus').textContent='Login...';
+  const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
+  $('loginStatus').textContent=error?'Gagal: '+error.message:'Login berhasil';
+  if(!error)refreshSession();
+};
+$('logoutBtn').onclick=async()=>{await sb.auth.signOut();refreshSession()};
+
+async function loadSettings(){
+  const {data,error}=await sb.from('display_settings').select('*').eq('id',SETTINGS_ID).maybeSingle();
+  if(error){$('adminStatus').textContent='Error: '+error.message;return}
+  if(data){
+    $('promoFit').value=data.promo_fit||'contain';
+    $('adminStatus').textContent='MODE AKTIF: '+String(data.mode||'queue').toUpperCase();
+    if(data.promo_url){$('previewImg').src=data.promo_url;$('previewImg').style.display='block';$('previewEmpty').style.display='none'}
+  }
+}
+async function setMode(mode){
+  const {error}=await sb.from('display_settings').upsert({id:SETTINGS_ID,mode,updated_at:new Date().toISOString()});
+  $('adminStatus').textContent=error?'Gagal: '+error.message:'MODE AKTIF: '+mode.toUpperCase();
+}
+$('queueBtn').onclick=()=>setMode('queue');
+$('promoBtn').onclick=()=>setMode('promo');
+
+$('promoFile').onchange=()=>{
+  const f=$('promoFile').files[0];if(!f)return;
+  $('previewImg').src=URL.createObjectURL(f);$('previewImg').style.display='block';$('previewEmpty').style.display='none';
+};
+$('uploadBtn').onclick=async()=>{
+  const f=$('promoFile').files[0];
+  if(!f){$('adminStatus').textContent='Pilih gambar promo terlebih dahulu.';return}
+  $('adminStatus').textContent='Mengupload promo...';
+  const ext=(f.name.split('.').pop()||'jpg').toLowerCase();
+  const path=`rk-main/promo-${Date.now()}.${ext}`;
+  const {error:upErr}=await sb.storage.from(BUCKET).upload(path,f,{upsert:false,contentType:f.type||undefined});
+  if(upErr){$('adminStatus').textContent='Upload gagal: '+upErr.message;return}
+  const {data:urlData}=sb.storage.from(BUCKET).getPublicUrl(path);
+  const promo_url=urlData.publicUrl;
+  const promo_fit=$('promoFit').value;
+  const {error}=await sb.from('display_settings').upsert({
+    id:SETTINGS_ID,promo_url,promo_fit,updated_at:new Date().toISOString()
+  });
+  if(error){$('adminStatus').textContent='Simpan gagal: '+error.message;return}
+  $('previewImg').src=promo_url;
+  $('adminStatus').textContent='Promo berhasil disimpan. Klik AKTIFKAN PROMO untuk menampilkan.';
+};
+sb.auth.onAuthStateChange(()=>refreshSession());
+refreshSession();
+</script>
+</body>
+</html>

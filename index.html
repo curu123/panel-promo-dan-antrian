@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>RK CELL Queue Display - Long Distance</title>
+<meta name="theme-color" content="#081426">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#050b14;--panel:#0c1624;--panel2:#111e2f;--line:#22334b;
+  --text:#f6f9ff;--muted:#7e90aa;--blue:#4d7cff;--cyan:#50c8ff;
+  --yellow:#ffd45c;--green:#39dea5;--red:#ff6475;
+  --shadow:0 22px 60px rgba(0,0,0,.28)
+}
+body.light{
+  --bg:#eef3f9;--panel:#ffffff;--panel2:#f7f9fc;--line:#cbd6e4;
+  --text:#101827;--muted:#526174;--blue:#245fe5;--cyan:#087fae;
+  --yellow:#a96c00;--green:#087b57;--red:#d71932;
+  --shadow:0 14px 36px rgba(28,48,78,.12);
+  background:linear-gradient(135deg,#edf3f9,#ffffff 48%,#eaf1f8);
+}
+body.light .top{border-bottom-color:rgba(15,35,60,.13)}
+body.light .section{background:linear-gradient(180deg,#fff,#f7f9fc);border-color:#d5deea}
+body.light .sec-head{background:#f3f6fa;border-bottom-color:#d7e0eb}
+body.light .unit{background:linear-gradient(180deg,#fff,#f4f7fb);border-color:#d6dfeb;box-shadow:0 6px 16px rgba(25,45,70,.08)}
+body.light .unit:hover{background:#fff;border-color:#b9c7d8}
+body.light .clock{color:#101827}
+body.light .live{background:#fff;border-color:#d5deea}
+body.light .ticker{background:#101827;color:#fff}
+body.light .customer{text-shadow:none}
+.theme-btn{height:48px;min-width:48px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);color:var(--text);border-radius:14px;font-size:22px;font-weight:900;cursor:pointer;display:grid;place-items:center;padding:0 13px}
+body.light .theme-btn{background:#fff;border-color:#d5deea;color:#101827;box-shadow:0 4px 12px rgba(25,45,70,.08)}
+
+.db-note{display:none!important;position:fixed;left:50%;top:94px;transform:translateX(-50%);z-index:99;
+  max-width:92vw;padding:9px 15px;border-radius:11px;font-size:13px;font-weight:800;
+  letter-spacing:.2px;display:none;box-shadow:0 8px 25px rgba(0,0,0,.22)}
+.db-note.show{display:block}
+.db-note.err{background:#7b1320;color:#fff;border:1px solid rgba(255,255,255,.16)}
+.db-note.ok{background:#0d684d;color:#fff;border:1px solid rgba(255,255,255,.16)}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:#050b14;color:var(--text);overflow:hidden}
+body{background:
+  radial-gradient(circle at 15% 10%,rgba(77,124,255,.14),transparent 27%),
+  radial-gradient(circle at 86% 88%,rgba(57,222,165,.08),transparent 26%),
+  linear-gradient(135deg,#050b14,#07111e 48%,#050b14)}
+.app{width:100vw;height:100vh;display:grid;grid-template-rows:92px 1fr 24px;padding:0 24px 10px;overflow:hidden}
+.top{display:grid;grid-template-columns:1fr auto;align-items:center;border-bottom:1px solid rgba(255,255,255,.055)}
+.top-left{display:flex;align-items:center;gap:16px;min-width:0}
+.brand-logo{width:62px;height:62px;border-radius:18px;display:grid;place-items:center;font-size:29px;font-weight:1000;background:linear-gradient(135deg,#376fff,#50c8ff);box-shadow:0 10px 30px rgba(55,111,255,.28)}
+.head-copy{min-width:0}.title{font-size:32px;font-weight:1000;letter-spacing:.2px}.subtitle{font-size:15px;color:var(--muted);margin-top:4px;letter-spacing:.7px;text-transform:uppercase}
+.top-right{display:flex;align-items:center;gap:14px}
+.live{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:15px;font-weight:900;letter-spacing:.8px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.055);padding:13px 16px;border-radius:14px}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--yellow);box-shadow:0 0 12px currentColor}.live.ok i{background:var(--green)}.live.err i{background:var(--red)}
+.clock-wrap{text-align:right}.clock{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:42px;font-weight:1000;letter-spacing:1px;color:#fff}.date{font-size:14px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.8px}
+.content{min-height:0;padding-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:minmax(0,1fr) 150px;gap:12px 14px}
+.section{min-width:0;min-height:0;display:grid;grid-template-rows:auto 1fr;border:1px solid rgba(255,255,255,.065);border-radius:20px;overflow:hidden;background:linear-gradient(180deg,rgba(17,30,47,.96),rgba(10,20,33,.96));box-shadow:var(--shadow);position:relative}
+.section:before{content:'';position:absolute;left:0;right:0;top:0;height:4px}
+.section.wait:before{background:linear-gradient(90deg,#396aff,#50c8ff)}
+.section.process:before{background:linear-gradient(90deg,#ffb13b,#ffd45c)}
+.section.done:before{background:linear-gradient(90deg,#21c98a,#58edbb)}
+.sec-head{padding:12px 16px 11px;border-bottom:1px solid rgba(255,255,255,.055);display:flex;align-items:end;justify-content:space-between;gap:16px;background:rgba(255,255,255,.014)}
+.sec-label{font-size:24px;font-weight:1000;letter-spacing:1.7px}.wait .sec-label{color:#75a0ff}.process .sec-label{color:var(--yellow)}.done .sec-label{color:var(--green)}
+.sec-note{font-size:12px;color:var(--muted);margin-top:4px;letter-spacing:.35px}
+.count{font-size:42px;font-weight:1000;line-height:.9;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-2px}
+.wait .count{color:#8ab0ff}.process .count{color:#ffe083}.done .count{color:#6aebbf}
+.list{min-height:0;overflow:hidden;padding:10px;display:grid;grid-template-rows:repeat(4,minmax(0,1fr));gap:8px;scrollbar-width:none}
+.list::-webkit-scrollbar{width:6px}.list::-webkit-scrollbar-thumb{background:#2b3b53;border-radius:20px}
+.unit{min-height:126px;border-radius:15px;background:linear-gradient(180deg,rgba(24,40,61,.96),rgba(19,33,51,.96));border:1px solid rgba(255,255,255,.055);display:grid;grid-template-columns:64px minmax(0,1fr) auto;align-items:center;gap:16px;padding:18px 18px;box-shadow:0 8px 20px rgba(0,0,0,.16);transition:.18s ease}
+.unit:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.11);background:linear-gradient(180deg,rgba(29,47,70,.98),rgba(21,36,55,.98))}
+.unit-icon{width:58px;height:58px;border-radius:16px;display:grid;place-items:center;background:rgba(77,124,255,.11);border:1px solid rgba(77,124,255,.22);color:#79a1ff;font-size:26px}
+.process .unit-icon{background:rgba(255,212,92,.08);border-color:rgba(255,212,92,.18);color:var(--yellow)}
+.done .unit-icon{background:rgba(57,222,165,.08);border-color:rgba(57,222,165,.18);color:var(--green)}
+.info{min-width:0}.device{font-size:28px;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.service-code{margin-top:4px;font-size:15px;font-weight:950;color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.service-code .meta-label{color:var(--muted)}
+.ticket{font-size:17px;color:#8a9bb3;margin-top:5px;letter-spacing:.8px}.sub{font-size:16px;color:#5f728f;margin-top:4px;text-transform:capitalize}
+.time{text-align:right;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;min-width:92px}.time b{font-size:28px;color:#82a8ff}.process .time b{color:#ffe083}.done .time b{color:#64e6ba}.time small{display:block;font-size:12px;color:#5c6d86;margin-top:5px;text-transform:uppercase;letter-spacing:.7px}
+.empty{margin:auto;padding:30px 12px;text-align:center;color:#60728c;font-size:20px}
+.footer{height:34px;overflow:hidden;display:flex;align-items:center;border-top:1px solid rgba(255,255,255,.06);background:rgba(7,15,26,.82);font-size:15px;font-weight:800;color:#9fb3cf;letter-spacing:.45px;white-space:nowrap;position:relative}.footer-track{display:inline-block;min-width:max-content;padding-left:100%;animation:footerMarquee 24s linear infinite}.footer-track span{padding-right:90px}.footer strong{color:#fff}.footer .wa{color:#54e7b6}@keyframes footerMarquee{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}@media(prefers-reduced-motion:reduce){.footer-track{animation:none;padding-left:12px}}
+.refresh{position:fixed;right:28px;bottom:24px;width:48px;height:48px;border-radius:15px;border:1px solid #2c405f;background:rgba(16,31,49,.95);color:#7ea3ff;font-size:22px;box-shadow:0 12px 30px rgba(0,0,0,.32);cursor:pointer;z-index:20;backdrop-filter:blur(10px)}.refresh:hover{background:#172a42}.refresh.spin{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:1050px){.content{grid-template-columns:1fr 1fr}.done{grid-column:1/-1}.app{overflow:auto;height:auto;min-height:100vh}html,body{overflow:auto}.section{min-height:430px}.top{position:sticky;top:0;z-index:30;background:rgba(5,11,20,.92);backdrop-filter:blur(12px)}}
+@media(max-width:720px){html,body{overflow:auto}.app{height:auto;min-height:100vh;padding:0 12px 16px;display:block}.top{min-height:76px}.title{font-size:17px}.subtitle{display:none}.clock{font-size:20px}.live{display:none}.content{display:block;padding-top:12px}.section{min-height:auto;margin-bottom:12px}.list{max-height:none;overflow:visible}.refresh{right:16px;bottom:16px}}
+
+/* Kartu informasi utama untuk tampilan jarak jauh */
+.unit{min-height:0;height:100%;display:block;padding:10px 14px;position:relative;animation:cardIn .42s ease both}
+.unit-icon,.time,.ticket{display:none!important}
+.info{display:grid;grid-template-columns:1fr;gap:3px}
+.customer{font-size:25px;font-weight:1000;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--red);text-shadow:0 0 18px rgba(255,100,117,.16)}
+.warranty-line{margin-top:5px;font-size:15px;font-weight:950;letter-spacing:.2px;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.warranty-line.expired{color:var(--red)}
+.warranty-line.none{color:var(--muted)}
+.warranty-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;background:rgba(57,222,165,.10);border:1px solid rgba(57,222,165,.22)}
+.warranty-line.expired .warranty-pill{background:rgba(255,100,117,.10);border-color:rgba(255,100,117,.22)}
+body.light .warranty-pill{background:#eaf8f2;border-color:#b9e7d6}
+body.light .warranty-line.expired .warranty-pill{background:#fff0f2;border-color:#f3c2ca}
+
+.device{font-size:19px;line-height:1.1;color:#dfe8f7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.complaint{font-size:17px;line-height:1.12;color:#aebdd1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:0}
+.meta-label{font-size:10px;font-weight:900;letter-spacing:1.1px;color:#657995;text-transform:uppercase;margin-right:7px}
+.status-badge{position:absolute;right:10px;top:9px;padding:5px 8px;border-radius:8px;font-size:11px;font-weight:1000;letter-spacing:1px}
+.wait .status-badge{color:#b9d0ff;background:rgba(77,124,255,.15);border:1px solid rgba(77,124,255,.3)}
+.process .status-badge{color:#ffe69a;background:rgba(255,212,92,.12);border:1px solid rgba(255,212,92,.28)}
+.done .status-badge{color:#8ff0ce;background:rgba(57,222,165,.12);border:1px solid rgba(57,222,165,.28)}
+.customer{padding-right:92px}
+@media(min-width:1400px){.customer{font-size:28px}.device{font-size:21px}.complaint{font-size:19px}}
+
+
+/* Maksimal 4 kartu per kolom + pergantian otomatis */
+@keyframes cardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.page-indicator{position:absolute;left:50%;bottom:3px;transform:translateX(-50%);font-size:9px;color:#536781;letter-spacing:1px;z-index:3}
+.section.taken{grid-column:1/-1;display:grid;grid-template-columns:190px 1fr;border-radius:16px;min-height:0}
+.section.taken:before{background:linear-gradient(90deg,#a855f7,#d8a2ff)}
+.taken .sec-head{border-bottom:0;border-right:1px solid rgba(255,255,255,.055);display:flex;align-items:center;padding:12px 16px}
+.taken .sec-label{color:#d8a2ff;font-size:20px}.taken .sec-note{font-size:10px}.taken .count{font-size:32px;color:#d8a2ff}
+.taken-list{min-width:0;overflow:hidden;padding:9px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.taken .unit{padding:9px 11px;background:linear-gradient(180deg,rgba(44,27,59,.88),rgba(27,22,40,.94));border-color:rgba(216,162,255,.12)}
+.taken .customer{font-size:19px;padding-right:78px}.taken .complaint{font-size:13px;-webkit-line-clamp:1;white-space:nowrap;text-overflow:ellipsis;display:block}.taken .device{font-size:14px}.taken .status-badge{font-size:9px;color:#efd8ff;background:rgba(168,85,247,.15);border:1px solid rgba(216,162,255,.25)}
+.taken .meta-label{font-size:8px}
+@media(max-height:760px) and (min-width:1051px){.app{grid-template-rows:82px 1fr 20px}.content{grid-template-rows:minmax(0,1fr) 130px;padding-top:10px}.clock{font-size:34px}.brand-logo{width:52px;height:52px}.title{font-size:27px}.sec-head{padding:9px 13px}.sec-label{font-size:21px}.count{font-size:35px}.list{padding:7px;gap:6px}.unit{padding:7px 11px}.customer{font-size:21px}.complaint{font-size:14px}.device{font-size:16px}.taken .customer{font-size:17px}}
+
+
+/* Final monitoring enhancements */
+.live.offline i{background:var(--red)}
+.live.reconnect i{background:var(--yellow);animation:pulseDot 1.1s ease-in-out infinite}
+@keyframes pulseDot{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(1.45);opacity:1}}
+.unit.new-entry{animation:newEntry 1.1s ease-in-out 0s 3}
+@keyframes newEntry{0%,100%{box-shadow:0 8px 20px rgba(0,0,0,.16)}50%{box-shadow:0 0 0 2px rgba(255,212,92,.68),0 0 28px rgba(255,212,92,.35);transform:translateY(-1px)}}
+.empty-state{margin:auto;display:grid;place-items:center;text-align:center;gap:7px;color:#71839e;padding:18px}
+.empty-state .empty-icon{font-size:34px;line-height:1}
+.empty-state b{font-size:18px;color:#9fb0c7}
+.empty-state small{font-size:12px;color:#60718a;letter-spacing:.4px}
+.connection-note{font-size:10px;color:#667b98;white-space:nowrap}
+
+/* RK CELL: tampilan papan dibuat seragam dengan HURUF KAPITAL */
+body{ text-transform:uppercase; }
+
+
+.voice-btn{height:48px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);color:var(--text);border-radius:14px;font-size:14px;font-weight:1000;cursor:pointer;padding:0 14px;letter-spacing:.4px}
+.voice-btn.on{border-color:rgba(57,222,165,.28);color:var(--green)}
+body.light .voice-btn{background:#fff;border-color:#d5deea;color:#101827}
+body.light .voice-btn.on{color:#087b57;border-color:#b9e7d6}
+
+
+.android-refresh{
+  display:grid;
+  place-items:center;
+  padding:0;
+  background:linear-gradient(145deg,rgba(119,255,92,.18),rgba(22,44,34,.97));
+  border-color:rgba(128,255,105,.42);
+  color:#86ff69;
+  box-shadow:0 12px 30px rgba(0,0,0,.32),0 0 22px rgba(120,255,90,.10);
+}
+.android-refresh svg{width:29px;height:29px;fill:currentColor;stroke:currentColor;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.android-refresh svg rect{fill:currentColor;stroke:none}
+.android-refresh svg circle{fill:#102015;stroke:none}
+.android-refresh svg path{fill:none}
+.android-refresh:hover{background:linear-gradient(145deg,rgba(126,255,97,.28),rgba(25,52,39,.98));transform:translateY(-1px)}
+body.light .android-refresh{background:#fff;border-color:#b9e8b0;color:#2f9e44;box-shadow:0 10px 24px rgba(24,47,31,.12)}
+body.light .android-refresh svg circle{fill:#fff}
+
+
+/* V5 LIVE EXPERIENCE */
+.unit{transition:transform .45s ease,opacity .45s ease,box-shadow .45s ease,border-color .45s ease}
+.unit.status-flash{animation:statusFlash 6s ease}
+@keyframes statusFlash{0%,18%,36%{box-shadow:0 0 0 2px rgba(73,255,176,.9),0 0 38px rgba(73,255,176,.32);transform:scale(1.012)}9%,27%,100%{box-shadow:var(--shadow);transform:scale(1)}}
+.unit.priority body.cursor-hidden,body.cursor-hidden *{cursor:none!important}
+
+
+/* V7 ENHANCEMENTS */
+.unit.move-in{animation:moveIn .7s cubic-bezier(.2,.8,.2,1)}
+@keyframes moveIn{
+  0%{opacity:0;transform:translateX(-28px) scale(.985)}
+  100%{opacity:1;transform:translateX(0) scale(1)}
+}
+.change-badge{
+  display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 7px;
+  border-radius:999px;font-size:11px;font-weight:1000;letter-spacing:.45px;
+  background:rgba(126,249,177,.11);border:1px solid rgba(126,249,177,.28);color:#7ef9b1
+}
+.change-badge.done{background:rgba(109,177,255,.10);border-color:rgba(109,177,255,.28);color:#8fc2ff}
+.day-summary{
+  position:fixed;left:18px;bottom:10px;z-index:15;font-size:10px;font-weight:900;
+  letter-spacing:.45px;color:var(--muted);opacity:.82;pointer-events:none
+}
+.fullscreen-btn{
+  height:48px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);
+  color:var(--text);border-radius:14px;font-size:17px;font-weight:1000;cursor:pointer;padding:0 13px
+}
+body.light .fullscreen-btn{background:#fff;border-color:#d5deea;color:#101827}
+
+
+/* WHITE THEME HIGH-CONTRAST FIX */
+body.light{
+  --bg:#eef2f6;
+  --panel:#ffffff;
+  --text:#0b1220;
+  --muted:#344054;
+  --line:#aeb9c8;
+  --shadow:0 5px 18px rgba(15,23,42,.13);
+}
+body.light .topbar,
+body.light .column,
+body.light .taken-section{
+  background:#ffffff!important;
+  border-color:#aeb9c8!important;
+  box-shadow:0 4px 16px rgba(15,23,42,.10)!important;
+}
+body.light .unit{
+  background:#f8fafc!important;
+  border:2px solid #aeb9c8!important;
+  box-shadow:0 3px 10px rgba(15,23,42,.10)!important;
+}
+body.light .unit:hover{border-color:#667085!important}
+body.light .meta-label,
+body.light .subtitle,
+body.light .page-indicator,
+body.light .day-summary{color:#344054!important;opacity:1!important}
+body.light .service-code{color:#111827!important}
+body.light .status-badge{font-weight:1000!important}
+body.light .theme-btn,
+body.light .voice-btn,
+body.light .fullscreen-btn,
+body.light #refresh{
+  background:#ffffff!important;
+  color:#0b1220!important;
+  border:2px solid #9aa7b7!important;
+}
+body.light .column-title,
+body.light .taken-title{color:#0b1220!important}
+body.light .empty{color:#475467!important}
+body.light .ticker,
+body.light .marquee{border-color:#9aa7b7!important}
+
+
+/* PROMO DISPLAY MODE */
+#promoScreen{
+  position:fixed;inset:0;z-index:99999;background:#000;
+  display:none;align-items:center;justify-content:center;overflow:hidden
+}
+#promoScreen.active{display:flex}
+#promoScreen img{
+  width:100%;height:100%;object-fit:contain;background:#000;
+}
+#promoScreen.cover img{object-fit:cover}
+#promoScreen .promo-fallback{
+  color:#fff;font-size:28px;font-weight:900;letter-spacing:.5px;text-align:center;padding:30px
+}
+
+</style>
+</head>
+<body>
+<div class="db-note" id="dbNote"></div>
+<div class="app">
+  <header class="top">
+    <div class="top-left">
+      <div class="brand-logo">RK</div>
+      <div class="head-copy">
+        <div class="title">Papan Antrean Service</div>
+        <div class="subtitle">RK CELL SERVICE • LONG DISTANCE DISPLAY</div>
+      </div>
+    </div>
+    <div class="top-right">
+      <button class="fullscreen-btn" id="fullscreenBtn" type="button" title="Fullscreen">⛶</button>
+      <button class="voice-btn on" id="voiceBtn" type="button" title="Aktif/nonaktif suara">🔊 VOICE ON</button>
+      <button class="theme-btn" id="themeBtn" type="button" title="Ganti tema" aria-label="Ganti tema">☀</button>
+      <div class="live" id="live"><i></i><span id="liveText">CONNECTING</span></div>
+      <div class="clock-wrap">
+        <div class="clock" id="clock">--:--:--</div>
+        <div class="date" id="dateNow">--</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="content">
+    <section class="section wait">
+      <div class="sec-head"><div><div class="sec-label">ANTREAN</div><div class="sec-note">Unit yang menunggu penanganan</div></div><div class="count" id="waitingCount">00</div></div>
+      <div class="list" id="waitingList"><div class="empty">Memuat data antrean…</div></div><div class="page-indicator" id="waitingPage"></div>
+    </section>
+
+    <section class="section process">
+      <div class="sec-head"><div><div class="sec-label">PROSES</div><div class="sec-note">Sedang didiagnosa / dikerjakan</div></div><div class="count" id="processCount">00</div></div>
+      <div class="list" id="processList"><div class="empty">Memuat data proses…</div></div><div class="page-indicator" id="processPage"></div>
+    </section>
+
+    <section class="section done">
+      <div class="sec-head"><div><div class="sec-label">SELESAI</div><div class="sec-note">Selesai, menunggu diambil</div></div><div class="count" id="doneCount">00</div></div>
+      <div class="list" id="doneList"><div class="empty">Memuat data selesai…</div></div>
+      <div class="page-indicator" id="donePage"></div>
+    </section>
+
+    <section class="section taken">
+      <div class="sec-head"><div><div class="sec-label">SUDAH DIAMBIL</div><div class="sec-note">Unit yang telah diserahkan ke pelanggan</div></div><div class="count" id="takenCount">00</div></div>
+      <div class="taken-list" id="takenList"><div class="empty">Memuat data…</div></div>
+    </section>
+  </main>
+  <div class="footer" aria-label="Informasi RK CELL"><div class="footer-track"><span><strong>RK CELL SERVICE</strong> • Jalan Veteran Belakang Kantor Pos • Jika mengalami kendala, klaim garansi, serta pertanyaan lainnya, bisa menghubungi kami di WhatsApp <span class="wa">0851-4849-5045</span></span><span><strong>RK CELL SERVICE</strong> • Jalan Veteran Belakang Kantor Pos • Jika mengalami kendala, klaim garansi, serta pertanyaan lainnya, bisa menghubungi kami di WhatsApp <span class="wa">0851-4849-5045</span></span></div></div>
+  <button class="refresh android-refresh" id="refresh" aria-label="Refresh" title="Refresh data">
+  <svg viewBox="0 0 64 64" aria-hidden="true">
+    <path d="M21 20 16 11M43 20l5-9" />
+    <rect x="15" y="20" width="34" height="26" rx="10" />
+    <circle cx="25" cy="31" r="2.5" />
+    <circle cx="39" cy="31" r="2.5" />
+    <path d="M15 31H9v13M49 31h6v13M22 46v8M42 46v8" />
+  </svg>
+</button>
+</div>
+<script>
+const SUPABASE_URL='https://qobrmwqrawkixdjevcji.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvYnJtd3FyYXdraXhkamV2Y2ppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzMzU4NjYsImV4cCI6MjA4OTkxMTg2Nn0.NZTsT_Aola1cGOr1H_ey7OvPZJUWOy8G6-tmSDWPox0';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+function updateClock(){const now=new Date();const p=new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(now);const o={};p.forEach(x=>o[x.type]=x.value);$('clock').textContent=`${o.hour}:${o.minute}:${o.second}`;const d=$('dateNow');if(d)d.textContent=new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',weekday:'long',day:'2-digit',month:'long',year:'numeric'}).format(now)}
+updateClock();setInterval(updateClock,1000);
+function applyTheme(theme){
+  const light=theme==='light';
+  document.body.classList.toggle('light',light);
+  const btn=$('themeBtn');
+  if(btn){btn.textContent=light?'☾':'☀';btn.title=light?'Gunakan tema gelap':'Gunakan tema terang'}
+  document.querySelector('meta[name="theme-color"]').setAttribute('content',light?'#eef3f9':'#081426');
+  localStorage.setItem('rk_queue_theme',theme);
+}
+applyTheme(localStorage.getItem('rk_queue_theme')||'dark');
+$('themeBtn').addEventListener('click',()=>applyTheme(document.body.classList.contains('light')?'dark':'light'));
+
+
+$('fullscreenBtn')?.addEventListener('click',async()=>{
+  try{
+    if(!document.fullscreenElement){
+      await document.documentElement.requestFullscreen();
+    }else{
+      await document.exitFullscreen();
+    }
+  }catch(e){console.warn('Fullscreen tidak tersedia:',e)}
+});
+document.addEventListener('fullscreenchange',()=>{
+  const b=$('fullscreenBtn');if(b)b.textContent=document.fullscreenElement?'🗗':'⛶';
+});
+
+let voiceEnabled=localStorage.getItem('rk_voice_enabled')!=='0';
+let voiceUnlocked=false;
+let voiceInitialized=false;
+const previousStatuses=new Map();
+
+function updateVoiceButton(){
+  const b=$('voiceBtn'); if(!b)return;
+  b.classList.toggle('on',voiceEnabled);
+  b.textContent=voiceEnabled?'🔊 VOICE ON':'🔇 VOICE OFF';
+}
+updateVoiceButton();
+
+function unlockVoice(){
+  voiceUnlocked=true;
+  if(!voiceEnabled||!('speechSynthesis' in window))return;
+  const u=new SpeechSynthesisUtterance('');
+  u.volume=0;
+  window.speechSynthesis.speak(u);
+}
+document.addEventListener('click',unlockVoice,{once:true});
+document.addEventListener('keydown',unlockVoice,{once:true});
+
+$('voiceBtn')?.addEventListener('click',()=>{
+  voiceEnabled=!voiceEnabled;
+  localStorage.setItem('rk_voice_enabled',voiceEnabled?'1':'0');
+  updateVoiceButton();
+  voiceUnlocked=true;
+  if(!voiceEnabled&&'speechSynthesis' in window)window.speechSynthesis.cancel();
+});
+
+function spokenStatus(r){
+  if(r.final_receipt_printed_at)return 'sudah diambil';
+  if(r.status==='completed')return 'selesai';
+  if(r.status==='waiting')return 'antrean';
+  if(['diagnosis','in_progress','pending','awaiting_confirmation'].includes(r.status))return 'proses';
+  return String(r.status||'');
+}
+function spokenName(r){return String(r.customer_name||'pelanggan').trim()}
+function spokenDevice(r){return String(deviceName(r)||'perangkat').trim()}
+
+
+const voiceQueue=[];
+let voiceBusy=false;
+let audioCtx=null;
+function playChime(){
+  return new Promise(resolve=>{
+    try{
+      audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+      const ctx=audioCtx,now=ctx.currentTime;
+      [660,880].forEach((freq,i)=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.frequency.value=freq;o.type='sine';
+        g.gain.setValueAtTime(0,now+i*.18);
+        g.gain.linearRampToValueAtTime(.11,now+i*.18+.025);
+        g.gain.exponentialRampToValueAtTime(.001,now+i*.18+.18);
+        o.connect(g);g.connect(ctx.destination);o.start(now+i*.18);o.stop(now+i*.18+.2);
+      });
+      setTimeout(resolve,430);
+    }catch(e){resolve()}
+  });
+}
+function speakNotification(text){
+  if(!voiceEnabled||!voiceUnlocked||!('speechSynthesis' in window))return;
+  voiceQueue.push(text);processVoiceQueue();
+}
+async function processVoiceQueue(){
+  if(voiceBusy||!voiceQueue.length||!voiceEnabled)return;
+  voiceBusy=true;
+  const text=voiceQueue.shift();
+  await playChime();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='id-ID';u.rate=.92;u.pitch=1;u.volume=1;
+  const voices=window.speechSynthesis.getVoices();
+  const idVoice=voices.find(v=>String(v.lang).toLowerCase().startsWith('id'));
+  if(idVoice)u.voice=idVoice;
+  u.onend=u.onerror=()=>{voiceBusy=false;setTimeout(processVoiceQueue,180)};
+  window.speechSynthesis.speak(u);
+}
+function announceStatusChanges(rows){
+  const current=new Map();
+  rows.forEach(r=>{
+    const key=String(r.ticket_number||'').trim();
+    if(!key)return;
+    const now=spokenStatus(r);
+    current.set(key,now);
+    const old=previousStatuses.get(key);
+    if(voiceInitialized&&old&&old!==now){
+      r.__statusChanged=true;
+      r.__moveIn=true;
+      r.__changeLabel=now==='proses'?'BARU DIPROSES':now==='selesai'?'BARU SELESAI':now==='sudah diambil'?'BARU DIAMBIL':'STATUS BARU';
+      setTimeout(()=>{r.__statusChanged=false;r.__moveIn=false;r.__changeLabel=''},10000);
+      let text='';
+      if(old==='antrean'&&now==='proses'){
+        text=`Perhatian. Service atas nama ${spokenName(r)}, tipe ${spokenDevice(r)}, sekarang masuk proses pengerjaan.`;
+      }else if(now==='selesai'){
+        text=`Informasi. Service atas nama ${spokenName(r)}, tipe ${spokenDevice(r)}, telah selesai dan siap diambil.`;
+      }else if(now==='sudah diambil'){
+        text=`Informasi. Service atas nama ${spokenName(r)}, tipe ${spokenDevice(r)}, sudah diambil. Garansi aktif sesuai ketentuan.`;
+      }else{
+        text=`Informasi. Service atas nama ${spokenName(r)}, tipe ${spokenDevice(r)}, status berubah menjadi ${now}.`;
+      }
+      speakNotification(text);
+    }
+  });
+  previousStatuses.clear();
+  current.forEach((v,k)=>previousStatuses.set(k,v));
+  voiceInitialized=true;
+}
+
+
+const AUTO_THEME_KEY='rk_theme_manual_override';
+function preferredAutoTheme(){
+  const h=new Date().getHours();
+  return (h>=18||h<6)?'dark':'light';
+}
+function applyAutoThemeIfNeeded(){
+  const manual=localStorage.getItem(AUTO_THEME_KEY);
+  if(manual==='1')return;
+  const auto=preferredAutoTheme();
+  document.body.classList.toggle('light',auto==='light');
+  try{localStorage.setItem('rk_theme',auto)}catch(e){}
+  if(typeof updateThemeButton==='function')updateThemeButton();
+}
+applyAutoThemeIfNeeded();
+setInterval(applyAutoThemeIfNeeded,5*60*1000);
+
+$('themeBtn')?.addEventListener('click',()=>{localStorage.setItem(AUTO_THEME_KEY,'1')});
+function shortTicket(t){if(!t)return 'TIKET —';const s=String(t);return s.length>8?`${s.slice(0,4)}••••${s.slice(-4)}`:s}
+function timeOnly(v){if(!v)return '--:--';return new Date(v).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta',hour:'2-digit',minute:'2-digit',hour12:false}).replace('.',':')}
+function deviceName(r){return [r.device_brand,r.device_model].filter(Boolean).join(' ')||r.device_type||'Perangkat Service'}
+function customerName(r){
+  return String(r?.customer_name||'').trim()||'—';
+}
+function hasRealCustomerName(r){
+  return Boolean(String(r?.customer_name||'').trim());
+}
+function formatDateOnly(v){
+  if(!v)return '';
+  const d=new Date(v); if(isNaN(d))return '';
+  return d.toLocaleDateString('id-ID',{timeZone:'Asia/Jakarta',day:'2-digit',month:'short',year:'numeric'});
+}
+function warrantyEnd(r){
+  const txt=String(r?.warranty_terms||'').trim();
+  const baseRaw=r?.completed_at||r?.final_completed_at;
+  if(!txt||!baseRaw)return null;
+
+  const d=new Date(baseRaw);
+  if(isNaN(d))return null;
+
+  const m=txt.match(/(\d+)\s*(hari|day|bulan|month|tahun|year)/i);
+  if(!m)return null;
+
+  const n=Number(m[1]),u=m[2].toLowerCase();
+  if(/bulan|month/.test(u))d.setMonth(d.getMonth()+n);
+  else if(/tahun|year/.test(u))d.setFullYear(d.getFullYear()+n);
+  else d.setDate(d.getDate()+n);
+  return d;
+}
+function warrantyHtml(r,taken=false){
+  const end=warrantyEnd(r);
+  if(!end)return `<div class="warranty-line none"><span class="warranty-pill">GARANSI • Ketentuan belum tersedia</span></div>`;
+  const active=end.getTime()>=Date.now();
+  if(taken){
+    return `<div class="warranty-line ${active?'':'expired'}"><span class="warranty-pill">${active?'✓ GARANSI AKTIF':'GARANSI BERAKHIR'} • s/d ${esc(formatDateOnly(end))}</span></div>`;
+  }
+  return `<div class="warranty-line ${active?'':'expired'}"><span class="warranty-pill">BATAS GARANSI • ${esc(formatDateOnly(end))}</span></div>`;
+}
+function statusLabel(r,done=false,taken=false){if(taken)return 'SUDAH DIAMBIL';if(done||r.status==='completed')return 'SELESAI';if(r.status==='waiting')return 'ANTREAN';return 'PROSES'}
+
+
+function unitCard(r,done=false,taken=false){
+  const newClass=r.__new?' new-entry':'';
+  const warranty=(done||taken)?warrantyHtml(r,taken):'';
+  const flashClass=r.__statusChanged?' status-flash':'';
+  const moveClass=r.__moveIn?' move-in':'';
+  return `<div class="unit${newClass}${flashClass}${moveClass}"><div class="status-badge">${statusLabel(r,done,taken)}</div><div class="info"><div class="customer">${esc(customerName(r))}</div><div class="complaint"><span class="meta-label">KENDALA</span>${esc(r.complaint||'Belum ada keterangan kendala')}</div><div class="device"><span class="meta-label">TYPE</span>${esc(deviceName(r))}</div><div class="service-code"><span class="meta-label">KODE SERVICE</span>${esc(r.ticket_number||'—')}</div>${r.__changeLabel?`<div class="change-badge${r.__changeLabel==='BARU SELESAI'?' done':''}">${esc(r.__changeLabel)}</div>`:''}${warranty}</div></div>`;
+}
+
+const PAGE_SIZE=4, ROTATE_MS=6500;
+const board={
+  waiting:{rows:[],page:0,list:'waitingList',indicator:'waitingPage',done:false,taken:false},
+  process:{rows:[],page:0,list:'processList',indicator:'processPage',done:false,taken:false},
+  done:{rows:[],page:0,list:'doneList',indicator:'donePage',done:true,taken:false},
+  taken:{rows:[],page:0,list:'takenList',indicator:null,done:true,taken:true}
+};
+const seenTickets=new Set();
+let firstSuccessfulLoad=true;
+let reconnectTimer=null;
+let reconnectDelay=5000;
+const emptyCopy={
+  waiting:['✓','Tidak ada antrean','Semua unit sudah tertangani atau sedang diproses'],
+  process:['⚙','Belum ada unit diproses','Unit yang mulai dikerjakan akan tampil di sini'],
+  done:['✓','Belum ada unit selesai','Unit yang selesai dan menunggu diambil akan tampil di sini'],
+  taken:['✓','Belum ada unit diambil','Unit yang sudah diserahkan ke pelanggan akan tampil di sini']
+};
+function setConnection(state,text){
+  const el=$('live'); if(!el)return;
+  el.className='live '+state; $('liveText').textContent=text;
+}
+function rowKey(r){return String(r.ticket_number||[r.device_brand,r.device_model,r.created_at].filter(Boolean).join('|'))}
+function scheduleReconnect(){
+  if(reconnectTimer||document.hidden)return;
+  setConnection('reconnect','MENYAMBUNG');
+  reconnectTimer=setTimeout(async()=>{
+    reconnectTimer=null;
+    await load(true);
+    if($('liveText').textContent!=='ONLINE'){reconnectDelay=Math.min(reconnectDelay*2,30000);scheduleReconnect()}
+  },reconnectDelay);
+}
+function clearReconnect(){if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null} reconnectDelay=5000;}
+
+function renderBoard(key){
+  const b=board[key], rows=b.rows||[], el=$(b.list); if(!el)return;
+  if(!rows.length){const c=emptyCopy[key]||['✓','Belum ada data',''];el.innerHTML=`<div class="empty-state"><div class="empty-icon">${c[0]}</div><b>${c[1]}</b><small>${c[2]}</small></div>`; if(b.indicator)$(b.indicator).textContent=''; return;}
+  const pages=Math.ceil(rows.length/PAGE_SIZE); if(b.page>=pages)b.page=0;
+  const slice=rows.slice(b.page*PAGE_SIZE,b.page*PAGE_SIZE+PAGE_SIZE);
+  el.innerHTML=slice.map(r=>unitCard(r,b.done,b.taken)).join('');
+  if(b.indicator)$(b.indicator).textContent=pages>1?`HALAMAN ${b.page+1} / ${pages} • BERGULIR OTOMATIS`:'';
+}
+function rotateBoards(){
+  Object.keys(board).forEach(key=>{const b=board[key], pages=Math.ceil((b.rows||[]).length/PAGE_SIZE);if(pages>1){b.page=(b.page+1)%pages;renderBoard(key)}})
+}
+setInterval(rotateBoards,ROTATE_MS);
+
+
+const TICKER_MESSAGES=["RK CELL SERVICE • JALAN VETERAN BELAKANG KANTOR POS • WHATSAPP 0851-4849-5045", "GARANSI SERVICE BERLAKU SESUAI KETENTUAN • SIMPAN KODE SERVICE ANDA", "TERIMA KASIH TELAH MEMERCAYAKAN SERVICE ANDA KEPADA RK CELL", "SERVICE HP • AKSESORIS • VOUCHER • LAYANAN DIGITAL RK CELL"];
+let tickerIndex=0;
+function setTickerMessage(){
+  const candidates=[...document.querySelectorAll('.ticker span,.marquee span,.ticker-track,.marquee-track')];
+  const el=candidates.find(x=>x&&x.textContent!==undefined);
+  if(!el)return;
+  el.textContent=TICKER_MESSAGES[tickerIndex%TICKER_MESSAGES.length];
+}
+function rotateTicker(){
+  tickerIndex=(tickerIndex+1)%TICKER_MESSAGES.length;
+  setTickerMessage();
+}
+setTimeout(setTickerMessage,300);
+setInterval(rotateTicker,20000);
+
+const PERIODIC_ANNOUNCE_MS=120*60*1000;
+const TAKEN_VISIBLE_MS=24*60*60*1000;
+let latestDoneRows=[];
+let periodicAnnounceTimer=null;
+
+const DISPLAY_SETTINGS_TABLE='display_settings';
+const DISPLAY_SETTINGS_ID='rk-main-display';
+let currentDisplayMode='queue';
+let promoRealtimeChannel=null;
+
+async function loadDisplayMode(){
+  try{
+    const {data,error}=await sb
+      .from(DISPLAY_SETTINGS_TABLE)
+      .select('mode,promo_url,promo_fit,updated_at')
+      .eq('id',DISPLAY_SETTINGS_ID)
+      .maybeSingle();
+    if(error)throw error;
+    applyDisplayMode(data||{mode:'queue'});
+  }catch(e){
+    console.warn('Display mode fallback antrean:',e);
+    applyDisplayMode({mode:'queue'});
+  }
+}
+
+function applyDisplayMode(cfg){
+  const screen=$('promoScreen');
+  const img=$('promoImage');
+  const fallback=$('promoFallback');
+  const mode=String(cfg?.mode||'queue').toLowerCase();
+  currentDisplayMode=mode==='promo'?'promo':'queue';
+
+  if(currentDisplayMode==='promo'){
+    screen.classList.add('active');
+    screen.classList.toggle('cover',String(cfg?.promo_fit||'contain')==='cover');
+    screen.setAttribute('aria-hidden','false');
+    if(cfg?.promo_url){
+      img.src=cfg.promo_url;
+      img.style.display='block';
+      fallback.style.display='none';
+    }else{
+      img.removeAttribute('src');
+      img.style.display='none';
+      fallback.style.display='block';
+    }
+  }else{
+    screen.classList.remove('active','cover');
+    screen.setAttribute('aria-hidden','true');
+  }
+}
+
+function startDisplayModeRealtime(){
+  try{
+    if(promoRealtimeChannel){try{sb.removeChannel(promoRealtimeChannel)}catch(e){}}
+    promoRealtimeChannel=sb.channel('rk-display-settings-live')
+      .on('postgres_changes',
+        {event:'*',schema:'public',table:DISPLAY_SETTINGS_TABLE,filter:`id=eq.${DISPLAY_SETTINGS_ID}`},
+        ()=>loadDisplayMode()
+      )
+      .subscribe();
+  }catch(e){console.warn('Display settings realtime fallback:',e)}
+}
+
+loadDisplayMode();
+startDisplayModeRealtime();
+setInterval(loadDisplayMode,30000);
+
+const DISPLAY_VIEW='service_queue_display_public';
+const DISPLAY_FIELDS='ticket_number,customer_name,status,device_brand,device_model,device_type,complaint,created_at,estimated_done_at,completed_at,final_completed_at,updated_at,final_receipt_printed_at,warranty_terms';
+
+
+const CACHE_KEY='rk_queue_last_rows_v1';
+function saveRowsCache(rows){try{localStorage.setItem(CACHE_KEY,JSON.stringify({at:Date.now(),rows}))}catch(e){}}
+function readRowsCache(){try{return JSON.parse(localStorage.getItem(CACHE_KEY)||'null')?.rows||[]}catch(e){return[]}}
+
+async function queryDisplayRows(){
+  const q=await sb.from(DISPLAY_VIEW).select(DISPLAY_FIELDS).order('created_at',{ascending:true});
+  if(q.error)throw q.error;
+  return q.data||[];
+}
+function showDbNote(text,type='err',autoHide=0){
+  // Pesan update/diagnostik sengaja disembunyikan dari layar antrean publik.
+  if(type==='err') console.warn(text);
+}
+function supabaseErrorText(e){
+  const msg=e?.message||String(e||'Kesalahan tidak diketahui');
+  const code=e?.code?` [${e.code}]`:'';
+  return `SUPABASE${code}: ${msg}`;
+}
+let lastRenderSignature='';
+let loadInProgress=false;
+async function load(fromReconnect=false){
+  if(loadInProgress)return;
+  loadInProgress=true;
+  const btn=$('refresh');
+  // SILENT REFRESH: data lama tetap tampil, tidak ada status SUPABASE/MENYAMBUNG,
+  // tidak ada animasi loading yang membuat layar terlihat sedang jeda.
+  if(!navigator.onLine){
+    setConnection('offline','OFFLINE');scheduleReconnect();loadInProgress=false;return;
+  }
+  try{
+    const rows=await queryDisplayRows();
+    saveRowsCache(rows);
+    updateDaySummary(rows);
+    announceStatusChanges(rows);
+    const waiting=rows.filter(r=>r.status==='waiting'&&!r.final_receipt_printed_at);
+    const process=rows.filter(r=>['diagnosis','in_progress','pending','awaiting_confirmation'].includes(r.status)&&!r.final_receipt_printed_at);
+    const done=rows.filter(r=>r.status==='completed'&&!r.final_receipt_printed_at)
+      .sort((a,b)=>new Date(b.completed_at||b.final_completed_at||b.updated_at||0)-new Date(a.completed_at||a.final_completed_at||a.updated_at||0));
+    const nowMs=Date.now();
+    const taken=rows.filter(r=>{
+      if(!r.final_receipt_printed_at)return false;
+      const t=new Date(r.final_receipt_printed_at).getTime();
+      return Number.isFinite(t) && (nowMs-t)<=TAKEN_VISIBLE_MS;
+    }).sort((a,b)=>new Date(b.final_receipt_printed_at||0)-new Date(a.final_receipt_printed_at||0));
+    latestDoneRows=done.slice();
+
+    // Tandai antrean yang benar-benar baru setelah pemuatan pertama.
+    waiting.forEach(r=>{const k=rowKey(r);r.__new=!firstSuccessfulLoad&&!seenTickets.has(k)});
+    [...waiting,...process,...done,...taken].forEach(r=>seenTickets.add(rowKey(r)));
+
+    const renderSignature=JSON.stringify(rows.map(r=>[
+      r.ticket_number,r.customer_name,r.status,r.device_brand,r.device_model,r.device_type,
+      r.complaint,r.completed_at,r.final_completed_at,r.final_receipt_printed_at,r.warranty_terms
+    ]));
+    if(renderSignature!==lastRenderSignature){
+      $('waitingCount').textContent=pad(waiting.length);$('processCount').textContent=pad(process.length);$('doneCount').textContent=pad(done.length);$('takenCount').textContent=pad(taken.length);
+      board.waiting.rows=waiting;board.process.rows=process;board.done.rows=done;board.taken.rows=taken;
+      // Pertahankan halaman rotasi bila masih valid agar update terasa mulus.
+      Object.keys(board).forEach(key=>{
+        const b=board[key],pages=Math.max(1,Math.ceil((b.rows||[]).length/PAGE_SIZE));
+        if(b.page>=pages)b.page=0;
+        renderBoard(key);
+      });
+      lastRenderSignature=renderSignature;
+    }
+    firstSuccessfulLoad=false;
+    clearReconnect();setConnection('ok','ONLINE');lastSuccessfulSync=Date.now();
+    // Setelah animasi, hilangkan penanda baru agar tidak berkedip lagi saat rotasi halaman.
+    setTimeout(()=>{waiting.forEach(r=>r.__new=false)},4500);
+  }catch(e){
+    console.error('Supabase:',e);setConnection('offline','DB ERROR');showDbNote(supabaseErrorText(e),'err');scheduleReconnect();
+  }finally{loadInProgress=false}
+}
+$('refresh').addEventListener('click',()=>load(false));
+window.addEventListener('online',()=>{clearReconnect();load(true)});
+window.addEventListener('offline',()=>{setConnection('offline','OFFLINE');scheduleReconnect()});
+
+
+function periodicFinishedAnnouncement(){
+  if(!voiceEnabled||!voiceUnlocked||!latestDoneRows.length)return;
+  const count=latestDoneRows.length;
+  const names=latestDoneRows.slice(0,5).map(r=>spokenName(r)).filter(Boolean);
+  let text=`Pengumuman RK Cell. Saat ini ada ${count} unit service yang telah selesai dan belum diambil.`;
+  if(names.length){
+    text+=` Atas nama ${names.join(', ')}.`;
+    if(count>names.length)text+=` Dan ${count-names.length} pelanggan lainnya.`;
+  }
+  text+=` Silakan melakukan pengambilan di RK Cell. Terima kasih.`;
+  speakNotification(text);
+}
+function startPeriodicAnnouncement(){
+  if(periodicAnnounceTimer)clearInterval(periodicAnnounceTimer);
+  periodicAnnounceTimer=setInterval(periodicFinishedAnnouncement,PERIODIC_ANNOUNCE_MS);
+}
+startPeriodicAnnouncement();
+
+
+function sameLocalDay(ts){
+  if(!ts)return false;
+  const d=new Date(ts),n=new Date();
+  return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate();
+}
+function updateDaySummary(rows){
+  const masuk=rows.filter(r=>sameLocalDay(r.created_at)).length;
+  const proses=rows.filter(r=>['diagnosis','in_progress','pending','awaiting_confirmation'].includes(r.status)&&sameLocalDay(r.updated_at||r.created_at)).length;
+  const selesai=rows.filter(r=>r.status==='completed'&&sameLocalDay(r.completed_at||r.final_completed_at||r.updated_at)).length;
+  const diambil=rows.filter(r=>r.final_receipt_printed_at&&sameLocalDay(r.final_receipt_printed_at)).length;
+  const el=$('daySummary');if(el)el.textContent=`HARI INI • MASUK ${masuk} • PROSES ${proses} • SELESAI ${selesai} • DIAMBIL ${diambil}`;
+}
+
+function bootFromCache(){
+  const rows=readRowsCache();if(!rows.length)return;
+  updateDaySummary(rows);
+  const waiting=rows.filter(r=>r.status==='waiting'&&!r.final_receipt_printed_at);
+  const process=rows.filter(r=>['diagnosis','in_progress','pending','awaiting_confirmation'].includes(r.status)&&!r.final_receipt_printed_at);
+  const done=rows.filter(r=>r.status==='completed'&&!r.final_receipt_printed_at);
+  latestDoneRows=done.slice();
+  const nowMs=Date.now();
+  const taken=rows.filter(r=>{
+    if(!r.final_receipt_printed_at)return false;
+    const t=new Date(r.final_receipt_printed_at).getTime();
+    return Number.isFinite(t) && (nowMs-t)<=TAKEN_VISIBLE_MS;
+  });
+  $('waitingCount').textContent=pad(waiting.length);$('processCount').textContent=pad(process.length);$('doneCount').textContent=pad(done.length);$('takenCount').textContent=pad(taken.length);
+  board.waiting.rows=waiting;board.process.rows=process;board.done.rows=done;board.taken.rows=taken;
+  Object.keys(board).forEach(renderBoard);
+}
+bootFromCache();
+
+// Mode monitor: cursor hilang otomatis setelah 3 detik tanpa gerakan.
+let cursorTimer;
+function wakeCursor(){
+  document.body.classList.remove('cursor-hidden');
+  clearTimeout(cursorTimer);
+  cursorTimer=setTimeout(()=>document.body.classList.add('cursor-hidden'),3000);
+}
+document.addEventListener('mousemove',wakeCursor,{passive:true});wakeCursor();
+
+
+let lastSuccessfulSync=Date.now();
+let realtimeChannel=null;
+let watchdogTimer=null;
+
+function startRealtimeChannel(){
+  try{
+    if(realtimeChannel){try{sb.removeChannel(realtimeChannel)}catch(e){}}
+    realtimeChannel=sb.channel('rk-queue-live-v7')
+      .on('postgres_changes',{event:'*',schema:'public',table:'service_orders'},()=>load(false))
+      .subscribe(status=>{
+        if(status==='SUBSCRIBED')lastSuccessfulSync=Date.now();
+      });
+  }catch(e){console.warn('Realtime fallback ke polling:',e)}
+}
+function startWatchdog(){
+  if(watchdogTimer)clearInterval(watchdogTimer);
+  watchdogTimer=setInterval(()=>{
+    const stale=Date.now()-lastSuccessfulSync>90000;
+    if(stale&&navigator.onLine){
+      startRealtimeChannel();
+      load(true);
+      lastSuccessfulSync=Date.now();
+    }
+  },30000);
+}
+startRealtimeChannel();
+startWatchdog();
+
+
+load();
+setInterval(()=>{if(!document.hidden&&navigator.onLine)load()},30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){clearReconnect();load(true)}});
+</script>
+<div class="day-summary" id="daySummary">HARI INI • MASUK 0 • PROSES 0 • SELESAI 0 • DIAMBIL 0</div>
+
+<div id="promoScreen" aria-hidden="true">
+  <img id="promoImage" alt="Promo RK CELL" style="display:none">
+  <div id="promoFallback" class="promo-fallback">PROMO BELUM TERSEDIA</div>
+</div>
+
+</body>
+</html>
