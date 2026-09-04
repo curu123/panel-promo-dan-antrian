@@ -65,17 +65,42 @@ const SETTINGS_ID='rk-main-display';
 const BUCKET='promo-assets';
 const $=id=>document.getElementById(id);
 
+function isAdminSession(session){
+  const user=session?.user;
+  const role=String(
+    user?.app_metadata?.role ??
+    user?.user_metadata?.role ??
+    ''
+  ).toLowerCase();
+  return role==='admin';
+}
+
 async function refreshSession(){
   const {data}=await sb.auth.getSession();
-  const logged=!!data.session;
-  $('loginCard').classList.toggle('hidden',logged);
-  $('adminCard').classList.toggle('hidden',!logged);
-  if(logged)loadSettings();
+  const session=data.session;
+  const logged=!!session;
+  const admin=isAdminSession(session);
+
+  $('loginCard').classList.toggle('hidden',logged && admin);
+  $('adminCard').classList.toggle('hidden',!logged || !admin);
+
+  if(logged && !admin){
+    $('loginCard').classList.remove('hidden');
+    $('loginStatus').textContent='AKSES DITOLAK • AKUN INI BUKAN ADMIN';
+    await sb.auth.signOut();
+    return;
+  }
+
+  if(logged && admin){
+    $('loginCard').classList.add('hidden');
+    $('adminCard').classList.remove('hidden');
+    loadSettings();
+  }
 }
 $('loginBtn').onclick=async()=>{
   $('loginStatus').textContent='Login...';
   const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
-  $('loginStatus').textContent=error?'Gagal: '+error.message:'Login berhasil';
+  $('loginStatus').textContent=error?'Gagal: '+error.message:'Memeriksa hak akses admin...';
   if(!error)refreshSession();
 };
 $('logoutBtn').onclick=async()=>{await sb.auth.signOut();refreshSession()};
