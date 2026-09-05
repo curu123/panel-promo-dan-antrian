@@ -248,6 +248,167 @@ body.light .marquee{border-color:#9aa7b7!important}
 }
 
 </style>
+
+<style id="rk-professional-override">
+:root{
+  --rk-bg:#07111f;
+  --rk-panel:#0d1a2b;
+  --rk-panel-2:#12233a;
+  --rk-line:#263b59;
+  --rk-text:#f7fbff;
+  --rk-muted:#a9bdd3;
+  --rk-yellow:#ffd84d;
+  --rk-red:#ff4d5f;
+  --rk-green:#36d17c;
+  --rk-blue:#56a8ff;
+  --rk-shadow:0 18px 50px rgba(0,0,0,.28);
+}
+body{
+  background:
+    radial-gradient(circle at top right, rgba(58,117,196,.18), transparent 28%),
+    linear-gradient(180deg,#08111f 0%,#06101c 100%) !important;
+  color:var(--rk-text) !important;
+  letter-spacing:.01em;
+}
+header,.topbar,.header{
+  background:linear-gradient(180deg,rgba(14,27,45,.98),rgba(9,18,31,.96)) !important;
+  border-bottom:1px solid rgba(133,170,215,.18) !important;
+  box-shadow:0 10px 28px rgba(0,0,0,.22) !important;
+  backdrop-filter:blur(12px);
+}
+.brand,.brand-title,h1{
+  letter-spacing:.04em !important;
+  font-weight:950 !important;
+}
+.subtitle,.muted,.sub,.small{
+  color:var(--rk-muted) !important;
+}
+button,.btn{
+  border-radius:12px !important;
+  border:1px solid rgba(255,255,255,.08) !important;
+  box-shadow:0 5px 16px rgba(0,0,0,.16) !important;
+  transition:transform .18s ease,filter .18s ease,background .18s ease !important;
+}
+button:hover,.btn:hover{
+  transform:translateY(-1px);
+  filter:brightness(1.05);
+}
+main,.board,.content{
+  gap:16px !important;
+}
+section,.column,.lane,.panel{
+  background:linear-gradient(180deg,rgba(16,31,51,.96),rgba(10,22,38,.96)) !important;
+  border:1px solid rgba(124,161,204,.20) !important;
+  border-radius:20px !important;
+  box-shadow:var(--rk-shadow) !important;
+}
+.section-title,.column-title,.lane-title,.panel-title{
+  font-size:clamp(18px,1.35vw,25px) !important;
+  letter-spacing:.06em !important;
+  font-weight:950 !important;
+  border-bottom:1px solid rgba(255,255,255,.08) !important;
+}
+.card,.queue-card,.ticket,.item{
+  background:
+    linear-gradient(180deg,rgba(22,41,65,.96),rgba(14,29,49,.98)) !important;
+  border:1px solid rgba(123,163,210,.22) !important;
+  border-radius:16px !important;
+  box-shadow:0 9px 26px rgba(0,0,0,.20) !important;
+}
+.card::before,.queue-card::before,.ticket::before{
+  opacity:.9;
+}
+.name,.customer-name,[class*="name"]{
+  color:var(--rk-red) !important;
+  font-weight:950 !important;
+  text-shadow:0 1px 0 rgba(0,0,0,.25);
+}
+.ticket-number,.code,.service-code,[class*="ticket"]{
+  font-weight:900 !important;
+}
+.status,.badge,.chip{
+  border-radius:999px !important;
+  font-weight:900 !important;
+  letter-spacing:.035em !important;
+}
+.clock,.time,.date{
+  font-variant-numeric:tabular-nums;
+}
+.ticker,.marquee,.bottom-ticker{
+  background:linear-gradient(90deg,#0d1b2f,#132743,#0d1b2f) !important;
+  border-top:1px solid rgba(255,255,255,.10) !important;
+  box-shadow:0 -8px 20px rgba(0,0,0,.15) !important;
+}
+.day-summary,.summary{
+  background:rgba(6,15,27,.86) !important;
+  border-top:1px solid rgba(255,255,255,.08) !important;
+  color:#dbe8f6 !important;
+}
+#promoScreen{
+  background:#02060c !important;
+}
+#promoScreen::before{
+  content:"RK CELL • PROMO";
+  position:absolute;
+  top:18px;
+  left:22px;
+  z-index:3;
+  font-weight:950;
+  letter-spacing:.08em;
+  font-size:14px;
+  color:rgba(255,255,255,.75);
+  background:rgba(0,0,0,.38);
+  border:1px solid rgba(255,255,255,.12);
+  padding:8px 11px;
+  border-radius:999px;
+  backdrop-filter:blur(10px);
+}
+#promoImage{
+  filter:saturate(1.02) contrast(1.02);
+}
+@media (prefers-reduced-motion:no-preference){
+  .card,.queue-card,.ticket,.item{
+    transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease !important;
+  }
+}
+body.light,body[data-theme="light"],.light-theme{
+  background:linear-gradient(180deg,#f5f8fc,#edf3f8) !important;
+  color:#101827 !important;
+}
+body.light section,body.light .column,body.light .lane,body.light .panel,
+body[data-theme="light"] section,body[data-theme="light"] .column,
+body[data-theme="light"] .lane,body[data-theme="light"] .panel{
+  background:#ffffff !important;
+  border-color:#cbd8e6 !important;
+  box-shadow:0 14px 32px rgba(33,55,84,.10) !important;
+}
+body.light .card,body.light .queue-card,body.light .ticket,body.light .item,
+body[data-theme="light"] .card,body[data-theme="light"] .queue-card,
+body[data-theme="light"] .ticket,body[data-theme="light"] .item{
+  background:linear-gradient(180deg,#ffffff,#f7fafc) !important;
+  border-color:#c8d6e6 !important;
+  color:#111827 !important;
+}
+body.light .muted,body.light .subtitle,body.light .small,
+body[data-theme="light"] .muted,body[data-theme="light"] .subtitle,
+body[data-theme="light"] .small{
+  color:#52657a !important;
+}
+</style>
+
+
+<style id="rk-stock-mode-style">
+#stockScreen{position:fixed;inset:0;z-index:99998;display:none;flex-direction:column;background:radial-gradient(circle at top right,rgba(40,112,190,.18),transparent 30%),linear-gradient(180deg,#07111f,#06101c);color:#fff;padding:22px 28px 24px}
+#stockScreen.active{display:flex}.stock-top{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,.12)}
+.stock-brand-title{font-size:34px;font-weight:950;letter-spacing:.04em}.stock-brand-sub{font-size:15px;color:#a9bdd3;font-weight:800;margin-top:5px}.stock-clock{font-size:28px;font-weight:950;font-variant-numeric:tabular-nums;text-align:right}
+.stock-grid{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-content:start;padding-top:20px;overflow:hidden}
+.stock-card{min-height:118px;padding:18px 20px;border:1px solid rgba(125,167,215,.22);border-radius:18px;background:linear-gradient(180deg,rgba(19,39,64,.96),rgba(12,27,46,.98));box-shadow:0 12px 30px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:space-between;gap:20px}
+.stock-name{font-size:clamp(22px,1.8vw,32px);font-weight:950;line-height:1.12;text-transform:uppercase}.stock-status{flex:0 0 auto;min-width:165px;text-align:center;padding:12px 15px;border-radius:999px;font-size:clamp(17px,1.3vw,23px);font-weight:950;letter-spacing:.035em}
+.stock-status.ok{color:#062014;background:#50dc91;border:1px solid #78ebb0}.stock-status.no{color:#fff;background:#e34858;border:1px solid #ff6c79}
+.stock-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,.1);padding-top:14px;margin-top:14px;color:#a9bdd3;font-weight:800}.stock-page{color:#fff;font-weight:950}
+.stock-empty{grid-column:1/-1;align-self:center;justify-self:center;text-align:center;color:#a9bdd3;font-size:28px;font-weight:900;padding-top:15vh}
+@media(max-width:1000px){.stock-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
 </head>
 <body>
 <div class="db-note" id="dbNote"></div>
@@ -605,6 +766,7 @@ async function loadDisplayMode(){
 }
 
 function applyDisplayMode(cfg){
+  if(rkApplyThreeMode(cfg)) return;
   const screen=$('promoScreen');
   const img=$('promoImage');
   const fallback=$('promoFallback');
@@ -821,6 +983,32 @@ startWatchdog();
 load();
 setInterval(()=>{if(!document.hidden&&navigator.onLine)load()},30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){clearReconnect();load(true)}});
+
+let rkStockRows=[],rkStockPage=0,rkStockTimer=null;
+const RK_STOCK_PER_PAGE=9;
+function rkEsc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function rkRenderStock(){
+ const grid=document.getElementById('stockGrid'),info=document.getElementById('stockPageInfo'); if(!grid||!info)return;
+ if(!rkStockRows.length){grid.innerHTML='<div class="stock-empty">BELUM ADA DATA STOK UNTUK DITAMPILKAN</div>';info.textContent='HALAMAN 1 / 1';return;}
+ const total=Math.max(1,Math.ceil(rkStockRows.length/RK_STOCK_PER_PAGE)); if(rkStockPage>=total)rkStockPage=0;
+ const page=rkStockRows.slice(rkStockPage*RK_STOCK_PER_PAGE,(rkStockPage+1)*RK_STOCK_PER_PAGE);
+ grid.innerHTML=page.map(r=>`<div class="stock-card"><div class="stock-name">${rkEsc(r.name||'-')}</div><div class="stock-status ${r.available?'ok':'no'}">${r.available?'TERSEDIA':'TIDAK TERSEDIA'}</div></div>`).join('');
+ info.textContent=`HALAMAN ${rkStockPage+1} / ${total}`;
+}
+async function rkLoadStock(){
+ try{const {data,error}=await sb.from('inventory_public_display').select('id,name,available,updated_at').order('name',{ascending:true});if(error)throw error;rkStockRows=Array.isArray(data)?data:[];rkRenderStock();}catch(e){console.warn('Stock load error',e);}
+}
+function rkApplyThreeMode(cfg){
+ const stock=document.getElementById('stockScreen'),promo=document.getElementById('promoScreen'),mode=String(cfg?.mode||'queue').toLowerCase();
+ currentDisplayMode=['queue','promo','stock'].includes(mode)?mode:'queue';
+ if(currentDisplayMode==='stock'){if(promo){promo.classList.remove('active','cover');promo.setAttribute('aria-hidden','true');}stock?.classList.add('active');stock?.setAttribute('aria-hidden','false');rkLoadStock();return true;}
+ stock?.classList.remove('active');stock?.setAttribute('aria-hidden','true');return false;
+}
+setInterval(()=>{const el=document.getElementById('stockClock');if(el)el.textContent=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1000);
+rkStockTimer=setInterval(()=>{if(currentDisplayMode!=='stock')return;const total=Math.max(1,Math.ceil(rkStockRows.length/RK_STOCK_PER_PAGE));rkStockPage=(rkStockPage+1)%total;rkRenderStock();},7000);
+rkLoadStock();setInterval(rkLoadStock,30000);
+try{sb.channel('rk-stock-public').on('postgres_changes',{event:'*',schema:'public',table:'inventory'},()=>rkLoadStock()).subscribe();}catch(e){}
+
 </script>
 <div class="day-summary" id="daySummary">HARI INI • MASUK 0 • PROSES 0 • SELESAI 0 • DIAMBIL 0</div>
 
@@ -829,5 +1017,14 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){clearReco
   <div id="promoFallback" class="promo-fallback">PROMO BELUM TERSEDIA</div>
 </div>
 
+
+<div id="stockScreen" aria-hidden="true">
+  <div class="stock-top">
+    <div><div class="stock-brand-title">RK CELL • STOK BARANG</div><div class="stock-brand-sub">KETERSEDIAAN BARANG TERKINI</div></div>
+    <div class="stock-clock" id="stockClock">--:--</div>
+  </div>
+  <div class="stock-grid" id="stockGrid"></div>
+  <div class="stock-footer"><div>RK CELL SERVICE • KETERSEDIAAN DAPAT BERUBAH SEWAKTU-WAKTU</div><div class="stock-page" id="stockPageInfo">HALAMAN 1 / 1</div></div>
+</div>
 </body>
 </html>
