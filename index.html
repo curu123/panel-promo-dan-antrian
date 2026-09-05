@@ -1,3 +1,135 @@
+Edit
+Edit
+
+Betul, kalau data inventory berasal dari aplikasi dan aplikasi tidak punya input kategori, jangan paksa ubah aplikasi dulu. Cara paling aman adalah kategori dibuat otomatis di Supabase dari nama barang, sehingga aplikasi tetap bekerja seperti sekarang.
+
+Jadi alurnya:
+
+APLIKASI
+Nama: Baterai Oppo A16
+Stock: 3
+        ↓
+SUPABASE
+kategori otomatis = BATTERY
+        ↓
+MONITOR
+Masuk ke tab BATERAI
+
+Kita bisa buat view publik yang otomatis menentukan kategori dari name, tanpa menambah kolom baru ke tabel inventory dan tanpa mengganggu aplikasi.
+
+Contohnya:
+
+create or replace view public.inventory_public_display as
+select
+  id,
+  name,
+
+  case
+    when lower(name) like '%lcd%'
+      or lower(name) like '%oled%'
+      or lower(name) like '%amoled%'
+      then 'LCD'
+
+    when lower(name) like '%baterai%'
+      or lower(name) like '%battery%'
+      then 'BATTERY'
+
+    when lower(name) like '%flex%'
+      or lower(name) like '%flexible%'
+      then 'FLEXIBLE'
+
+    when lower(name) like '%konektor%'
+      or lower(name) like '%connector%'
+      or lower(name) like '%type-c%'
+      or lower(name) like '%micro usb%'
+      or lower(name) like '%charging port%'
+      then 'CONNECTOR'
+
+    when lower(name) like '%kamera%'
+      or lower(name) like '%camera%'
+      then 'CAMERA'
+
+    when lower(name) like '%speaker%'
+      or lower(name) like '%buzzer%'
+      then 'SPEAKER'
+
+    when lower(name) like '%tempered%'
+      or lower(name) like '%glass%'
+      or lower(name) like '%case%'
+      or lower(name) like '%softcase%'
+      or lower(name) like '%headset%'
+      or lower(name) like '%earphone%'
+      or lower(name) like '%kabel%'
+      or lower(name) like '%charger%'
+      or lower(name) like '%powerbank%'
+      then 'ACCESSORY'
+
+    else 'OTHER'
+  end as category,
+
+  (coalesce(stock,0) > 0) as available,
+
+  updated_at
+
+from public.inventory;
+
+Lalu beri akses:
+
+grant select on public.inventory_public_display
+to anon, authenticated;
+
+Dengan cara ini aplikasi tidak perlu diubah sama sekali. Setiap kali aplikasi memasukkan barang baru, monitor otomatis mencoba menentukan kategorinya dari nama barang.
+
+Contoh:
+
+LCD A5 2020
+→ LCD
+
+Oppo A15 OLED
+→ LCD
+
+Baterai Samsung A12
+→ BATTERY
+
+Flexible On Off Oppo
+→ FLEXIBLE
+
+Konektor Cas Type-C
+→ CONNECTOR
+
+Kamera Depan Vivo Y12
+→ CAMERA
+
+Kalau ada barang yang tidak cocok, otomatis masuk LAINNYA.
+
+Menurut saya ini paling cocok untuk sistem Anda sekarang karena tidak merusak alur aplikasi yang sudah ada. Setelah SQL ini dijalankan, saya bisa lanjut ubah index.html supaya tombol LCD • BATERAI • FLEXIBLE • KONEKTOR • KAMERA • SPEAKER • AKSESORIS • LAINNYA benar-benar memfilter stok.
+
+oke buat di stok , karena hanya menampilkan saja maka tidak ada menu pencaraian oya stok agan bergulir jadi tidak monoton misal bergulir setiap beberapa waktu dan menampilkan semua stok bergantian dan berulang
+
+Sudah saya buat sesuai yang Anda mau.
+
+Sekarang bagian stok:
+
+tidak ada menu pencarian
+kategori dibuat otomatis dari nama barang di Supabase
+tampilan akan berganti otomatis setiap 8 detik
+urutannya: Semua → LCD → Baterai → Flexible → Konektor → Kamera → Speaker → Aksesoris → Lainnya
+kalau satu kategori punya banyak barang, halaman kategori itu akan bergulir dulu sebelum pindah ke kategori berikutnya
+setelah sampai akhir, kembali ke Semua dan berulang terus
+status tetap hanya ADA / HABIS, tanpa jumlah stok
+
+Gunakan file ini:
+
+HTML Stok Auto Rotate
+
+Sebelum upload ke GitHub, rename menjadi index.html.
+
+Lalu jalankan SQL ini sekali di Supabase agar kategori otomatis terbaca dari nama barang:
+
+SQL Kategori Stok Otomatis
+
+Aplikasi input stok Anda tidak perlu diubah sama sekali. 
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -398,183 +530,157 @@ body[data-theme="light"] .small{
 
 
 
+
 <style id="rk-stock-mode-style">
 #stockScreen{
   position:fixed; inset:0; z-index:99998; display:none;
   background:
-    radial-gradient(circle at 82% 0%,rgba(0,132,255,.20),transparent 32%),
-    radial-gradient(circle at 5% 92%,rgba(0,94,255,.10),transparent 26%),
-    linear-gradient(135deg,#020811 0%,#061628 48%,#03101e 100%);
+    radial-gradient(circle at 82% 0%,rgba(0,128,255,.17),transparent 30%),
+    linear-gradient(180deg,#04101d 0%,#061626 52%,#03101c 100%);
   color:#fff; overflow:hidden; font-family:Arial,Helvetica,sans-serif;
 }
-#stockScreen.active{display:grid;grid-template-rows:96px 92px 1fr 58px}
+#stockScreen.active{display:grid;grid-template-rows:92px 1fr 54px}
 
 .stock-pro-header{
-  display:grid; grid-template-columns:1.35fr 1fr auto; align-items:center;
-  gap:26px; padding:14px 28px;
-  background:linear-gradient(180deg,rgba(5,17,32,.98),rgba(3,13,25,.94));
-  border-bottom:1px solid rgba(62,151,255,.22);
-  box-shadow:0 12px 34px rgba(0,0,0,.28);
+  display:grid;grid-template-columns:1.15fr .9fr auto;align-items:center;
+  gap:24px;padding:12px 24px;
+  background:linear-gradient(180deg,rgba(4,15,28,.98),rgba(3,12,22,.96));
+  border-bottom:1px solid rgba(70,148,220,.20);
+  box-shadow:0 10px 28px rgba(0,0,0,.25)
 }
-.stock-logo-wrap{display:flex;align-items:center;gap:18px;min-width:0}
+.stock-logo-wrap{display:flex;align-items:center;gap:16px;min-width:0}
 .stock-logo-mark{
-  width:52px;height:66px;border:3px solid #fff;border-radius:12px;
-  position:relative;flex:0 0 auto;box-shadow:0 0 22px rgba(255,255,255,.08)
+  width:48px;height:61px;border:3px solid #fff;border-radius:10px;position:relative;
+  box-shadow:0 0 18px rgba(255,255,255,.06)
 }
 .stock-logo-mark:before{
-  content:"";position:absolute;width:18px;height:18px;border:5px solid #fff;
-  border-right-color:transparent;border-radius:50%;left:12px;top:13px;transform:rotate(-35deg)
+  content:"";position:absolute;width:17px;height:17px;border:5px solid #fff;
+  border-right-color:transparent;border-radius:50%;left:11px;top:12px;transform:rotate(-35deg)
 }
 .stock-logo-mark:after{
-  content:"";position:absolute;width:5px;height:26px;background:#fff;
-  left:25px;top:29px;border-radius:6px;transform:rotate(35deg)
+  content:"";position:absolute;width:5px;height:24px;background:#fff;left:23px;top:27px;
+  border-radius:6px;transform:rotate(35deg)
 }
-.stock-rk{font-size:46px;font-weight:1000;line-height:.9;letter-spacing:-.04em}
+.stock-rk{font-size:43px;font-weight:1000;line-height:.9;letter-spacing:-.04em}
 .stock-rk .rk{color:#ff313b}.stock-rk .cell{color:#fff}
-.stock-rk-sub{font-size:13px;font-weight:900;letter-spacing:.09em;margin-top:8px;color:#d9e7f8}
+.stock-rk-sub{font-size:12px;font-weight:900;letter-spacing:.08em;margin-top:7px;color:#d8e7f6}
 .stock-tagline{
-  border-left:1px solid rgba(255,255,255,.18);padding-left:28px;
-  font-size:27px;font-style:italic;font-weight:800;color:#fff;white-space:nowrap;
+  border-left:1px solid rgba(255,255,255,.17);padding-left:24px;
+  font-size:25px;font-style:italic;font-weight:800;color:#fff;white-space:nowrap
 }
-.stock-tagline span{border-bottom:3px solid #ff313b;padding-bottom:5px}
-.stock-head-right{display:flex;align-items:center;gap:18px}
+.stock-tagline span{border-bottom:3px solid #ff313b;padding-bottom:4px}
+.stock-head-right{display:flex;align-items:center;gap:14px}
 .stock-live{
-  display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:13px;
-  border:1px solid rgba(71,169,255,.28);background:rgba(10,34,60,.56);
-  font-size:12px;font-weight:900;color:#dcecff;white-space:nowrap
+  display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:12px;
+  border:1px solid rgba(71,169,255,.25);background:rgba(10,34,60,.50);
+  font-size:11px;font-weight:900;color:#dcecff;white-space:nowrap
 }
-.stock-live i{width:9px;height:9px;border-radius:50%;background:#40e58a;box-shadow:0 0 12px #40e58a;display:block}
+.stock-live i{width:8px;height:8px;border-radius:50%;background:#40e58a;box-shadow:0 0 10px #40e58a}
 .stock-date-time{
-  min-width:205px;text-align:center;padding:9px 16px;border-radius:15px;
-  background:rgba(5,20,37,.88);border:1px solid #0b7ee6;box-shadow:0 0 20px rgba(0,126,255,.12)
+  min-width:190px;text-align:center;padding:8px 14px;border-radius:14px;
+  background:rgba(5,20,37,.88);border:1px solid #0b7ee6
 }
-.stock-date{font-size:13px;color:#d7e6f8;font-weight:700}
-.stock-clock{font-size:31px;font-weight:1000;margin-top:3px;font-variant-numeric:tabular-nums;letter-spacing:.03em}
-
-.stock-nav{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:13px 28px 12px;
-  background:rgba(2,10,20,.58)
-}
-.stock-nav-item{
-  display:flex;align-items:center;justify-content:center;gap:13px;
-  border:1px solid #244566;border-radius:16px;background:linear-gradient(180deg,#11283f,#091a2b);
-  color:#dce9f6;box-shadow:0 8px 20px rgba(0,0,0,.18)
-}
-.stock-nav-item.active{
-  border-color:#00a7ff;background:linear-gradient(135deg,#068cff,#00b2ff);
-  color:#fff;box-shadow:0 0 25px rgba(0,168,255,.42),inset 0 1px 0 rgba(255,255,255,.24)
-}
-.stock-nav-icon{font-size:27px}.stock-nav-title{font-size:20px;font-weight:1000;letter-spacing:.02em}
-.stock-nav-sub{font-size:11px;color:#9fb7cf;margin-top:2px}.stock-nav-item.active .stock-nav-sub{color:#e7f7ff}
+.stock-date{font-size:12px;color:#d7e6f8;font-weight:700}
+.stock-clock{font-size:29px;font-weight:1000;margin-top:2px;font-variant-numeric:tabular-nums}
 
 .stock-content{
-  min-height:0;display:grid;grid-template-columns:220px 1fr;gap:14px;padding:0 22px 14px
+  min-height:0;display:flex;flex-direction:column;padding:12px 20px 12px
 }
-.stock-side{
-  min-height:0;border:1px solid #163a5e;border-radius:18px;overflow:hidden;
-  background:
-    radial-gradient(circle at 50% 10%,rgba(0,128,255,.16),transparent 38%),
-    linear-gradient(180deg,#08192c,#030c17);
-  box-shadow:0 12px 28px rgba(0,0,0,.25);display:flex;flex-direction:column
-}
-.stock-side-hero{
-  height:148px;position:relative;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(135deg,rgba(15,86,155,.45),rgba(2,14,26,.10));
-  border-bottom:1px solid rgba(69,147,219,.18)
-}
-.stock-side-phone{
-  width:74px;height:126px;border:4px solid #8ebeea;border-radius:17px;transform:rotate(-10deg);
-  background:linear-gradient(160deg,#1a4268,#07121f);box-shadow:18px 10px 0 -8px #0b2742,0 16px 28px rgba(0,0,0,.35)
-}
-.stock-side-phone:before{content:"";position:absolute;left:22px;top:9px;width:26px;height:5px;border-radius:5px;background:#9ec8ed}
-.stock-side-title{font-size:22px;font-weight:1000;line-height:1.05;padding:15px 18px 6px}
-.stock-side-title span{color:#39a9ff}
-.stock-side-list{display:grid;gap:7px;padding:7px 18px 14px;flex:1}
-.stock-side-row{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:900;color:#d7e7f6}
-.stock-side-check{
-  width:19px;height:19px;border-radius:50%;border:2px solid #3de58b;color:#3de58b;
-  display:grid;place-items:center;font-size:11px;font-weight:1000
-}
-.stock-side-bottom{
-  padding:12px 14px;background:linear-gradient(135deg,#ef1e2d,#ff3a43);
-  color:#fff;font-size:12px;font-weight:1000;text-align:center;letter-spacing:.03em
-}
-
 .stock-main{
-  min-width:0;min-height:0;border:1px solid #173b5f;border-radius:18px;
-  background:linear-gradient(180deg,rgba(6,22,39,.94),rgba(3,13,24,.96));
+  min-height:0;flex:1;border:1px solid #173b5f;border-radius:18px;
+  background:linear-gradient(180deg,rgba(7,23,40,.96),rgba(3,13,24,.98));
   box-shadow:0 14px 34px rgba(0,0,0,.22);
-  padding:16px 18px 14px;display:grid;grid-template-rows:auto 1fr auto
+  padding:14px 16px 12px;display:grid;grid-template-rows:auto auto 1fr auto;gap:10px
 }
-.stock-main-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:0 2px 13px}
-.stock-title-wrap{display:flex;align-items:center;gap:13px}
+.stock-main-head{
+  display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px
+}
+.stock-title-wrap{display:flex;align-items:center;gap:12px}
 .stock-box-icon{
-  width:48px;height:48px;border-radius:12px;background:linear-gradient(145deg,#0d77ff,#00b5ff);
-  display:grid;place-items:center;font-size:27px;box-shadow:0 0 22px rgba(0,154,255,.24)
+  width:46px;height:46px;border-radius:11px;background:linear-gradient(145deg,#0d77ff,#00b5ff);
+  display:grid;place-items:center;font-size:25px;box-shadow:0 0 18px rgba(0,154,255,.20)
 }
-.stock-main-title{font-size:31px;font-weight:1000;letter-spacing:.04em}
-.stock-main-sub{font-size:14px;color:#92abc4;font-weight:700;margin-top:3px}
-.stock-note{
-  font-size:12px;font-weight:900;color:#9eb6cc;border:1px solid #244766;
-  padding:9px 12px;border-radius:999px;background:#081a2b;white-space:nowrap
+.stock-main-title{font-size:30px;font-weight:1000;letter-spacing:.035em}
+.stock-main-sub{font-size:13px;color:#96aec5;font-weight:700;margin-top:2px}
+.stock-total{
+  height:44px;min-width:112px;border-radius:13px;border:1px solid #315778;background:#0b2137;
+  display:grid;place-items:center;font-size:11px;color:#a8bfd3;font-weight:800
+}
+.stock-total strong{font-size:21px;line-height:1;color:#00a7ff;display:block;margin-top:2px}
+
+.stock-category-strip{
+  display:grid;grid-template-columns:repeat(9,1fr);gap:8px
+}
+.stock-cat{pointer-events:none;
+  height:40px;border-radius:10px;border:1px solid #294a69;background:linear-gradient(180deg,#17324d,#0e2237);
+  display:flex;align-items:center;justify-content:center;gap:7px;color:#dce8f4;font-size:12px;font-weight:900
+}
+.stock-cat.active{
+  background:linear-gradient(135deg,#0b7fff,#00b3ff);border-color:#00b4ff;box-shadow:0 0 18px rgba(0,169,255,.20)
 }
 
 .stock-grid{
-  min-height:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
-  grid-template-rows:repeat(2,minmax(0,1fr));gap:12px;overflow:hidden
+  min-height:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
+  grid-template-rows:repeat(2,minmax(0,1fr));gap:10px;overflow:hidden
 }
-.stock-card{
-  min-height:0;border:1px solid #244c70;border-radius:15px;
-  background:linear-gradient(180deg,#16324d 0%,#0b2034 70%,#071727 100%);
-  box-shadow:0 9px 20px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.04);
-  padding:13px;display:grid;grid-template-rows:68px 1fr auto;position:relative;overflow:hidden
+.stock-card{animation:rkStockFade .32s ease both;
+  min-width:0;min-height:0;border:1px solid #d8e1ea;border-radius:13px;
+  background:linear-gradient(180deg,#ffffff 0%,#edf3f7 100%);
+  box-shadow:0 7px 16px rgba(0,0,0,.18);
+  padding:9px 9px 8px;display:grid;grid-template-rows:64px minmax(42px,1fr) 28px;
+  align-items:center;justify-items:center;color:#0c1722;position:relative;overflow:hidden
 }
 .stock-card:before{
-  content:"";position:absolute;inset:0;background:linear-gradient(130deg,rgba(255,255,255,.035),transparent 45%);
-  pointer-events:none
+  content:"";position:absolute;inset:0;background:linear-gradient(130deg,rgba(255,255,255,.28),transparent 45%);pointer-events:none
 }
 .stock-product-icon{
-  width:68px;height:64px;margin:auto;display:grid;place-items:center;color:#b7d9f5
+  width:60px;height:58px;display:grid;place-items:center;color:#1d4160
 }
-.stock-product-icon svg{width:60px;height:60px;filter:drop-shadow(0 8px 8px rgba(0,0,0,.3))}
+.stock-product-icon svg{width:52px;height:52px;filter:drop-shadow(0 5px 6px rgba(0,0,0,.15))}
 .stock-name{
-  align-self:center;text-align:left;font-size:clamp(16px,1.15vw,22px);font-weight:1000;
-  line-height:1.12;text-transform:uppercase;color:#fff;padding:2px 1px 10px
+  width:100%;text-align:center;font-size:clamp(13px,.86vw,17px);font-weight:1000;
+  line-height:1.08;text-transform:uppercase;color:#101821;
+  display:flex;align-items:center;justify-content:center;padding:1px 2px
 }
 .stock-status{
-  width:100%;text-align:center;padding:9px 8px;border-radius:999px;
-  font-size:clamp(13px,.95vw,17px);font-weight:1000;letter-spacing:.035em
+  width:auto;min-width:82px;max-width:100px;
+  text-align:center;padding:4px 10px;border-radius:999px;
+  font-size:clamp(10px,.7vw,12px);font-weight:1000;letter-spacing:.015em;
+  display:flex;align-items:center;justify-content:center;gap:5px
 }
-.stock-status.ok{color:#fff;background:linear-gradient(90deg,#0bc744,#0fe36b);box-shadow:0 0 16px rgba(16,225,95,.18)}
-.stock-status.no{color:#fff;background:linear-gradient(90deg,#e11b2a,#ff3d49);box-shadow:0 0 16px rgba(255,48,61,.18)}
+.stock-status.ok{color:#fff;background:linear-gradient(90deg,#0ac53d,#0fd75c);box-shadow:0 0 10px rgba(16,214,87,.14)}
+.stock-status.no{color:#fff;background:linear-gradient(90deg,#df1f2e,#ff3a46);box-shadow:0 0 10px rgba(255,48,61,.14)}
 .stock-status .dot{
-  display:inline-grid;place-items:center;width:21px;height:21px;margin-right:7px;border-radius:50%;
-  background:rgba(255,255,255,.94);color:#0fc957;font-size:13px;vertical-align:-2px
+  display:grid;place-items:center;width:15px;height:15px;border-radius:50%;
+  background:#fff;color:#0cc43f;font-size:10px;font-weight:1000;flex:0 0 auto
 }
-.stock-status.no .dot{color:#e31f30}
-.stock-empty{grid-column:1/-1;grid-row:1/-1;display:grid;place-items:center;color:#9ab2c9;font-size:25px;font-weight:900;text-align:center}
-
+.stock-status.no .dot{color:#df1f2e}
+.stock-empty{
+  grid-column:1/-1;grid-row:1/-1;display:grid;place-items:center;
+  color:#9ab2c9;font-size:24px;font-weight:900;text-align:center
+}
 .stock-main-foot{
-  display:flex;align-items:center;justify-content:space-between;padding-top:11px;color:#a6bad0;
-  font-size:12px;font-weight:900;letter-spacing:.02em
+  display:flex;align-items:center;justify-content:space-between;padding-top:1px;
+  color:#a6bad0;font-size:11px;font-weight:900
 }
-.stock-page{color:#fff;background:#0c2a47;border:1px solid #28567d;padding:7px 11px;border-radius:999px}
+.stock-page{color:#fff;background:#0c2a47;border:1px solid #28567d;padding:6px 10px;border-radius:999px}
 
 .stock-footer{
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px;
-  padding:0 30px;background:#020913;border-top:1px solid rgba(72,145,212,.18);
-  color:#c6d7e7;font-size:12px;font-weight:900
+  padding:0 26px;background:#020913;border-top:1px solid rgba(72,145,212,.18);
+  color:#c6d7e7;font-size:11px;font-weight:900
 }
-.stock-footer-center{font-size:20px;font-style:italic;color:#fff}
+.stock-footer-center{font-size:18px;font-style:italic;color:#fff}
 .stock-footer-center span{color:#ff3340}
 .stock-footer-right{text-align:right;color:#9eb5cb}
-@media(max-width:1150px){
-  #stockScreen.active{grid-template-rows:82px 78px 1fr 50px}
-  .stock-rk{font-size:38px}.stock-tagline{font-size:22px}.stock-date-time{min-width:180px}
-  .stock-content{grid-template-columns:180px 1fr}.stock-side-title{font-size:18px}.stock-side-row{font-size:11px}
-  .stock-main-title{font-size:26px}.stock-grid{gap:9px}.stock-card{padding:10px}
+
+@keyframes rkStockFade{from{opacity:.15;transform:translateY(7px)}to{opacity:1;transform:none}}
+@media(max-width:1280px){
+  .stock-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .stock-category-strip{grid-template-columns:repeat(5,1fr)}
 }
 </style>
+
 
 </head>
 <body>
@@ -1188,7 +1294,10 @@ setInterval(()=>{if(!document.hidden&&navigator.onLine)load()},30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){clearReconnect();load(true)}});
 
 let rkStockRows=[],rkStockPage=0,rkStockTimer=null;
-const RK_STOCK_PER_PAGE=8;
+let rkStockCategoryIndex=0;
+const RK_STOCK_CATEGORIES=['ALL','LCD','BATTERY','FLEXIBLE','CONNECTOR','CAMERA','SPEAKER','ACCESSORY','OTHER'];
+const RK_STOCK_CATEGORY_MS=8000;
+const RK_STOCK_PER_PAGE=14;
 function rkEsc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function rkStockIconSvg(name){
   const n=String(name||'').toLowerCase();
@@ -1216,24 +1325,52 @@ function rkStockIconSvg(name){
   }
   return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}" stroke-width="3"><path d="M12 22l20-11 20 11-20 11z"/><path d="M12 22v22l20 11 20-11V22M32 33v22"/></svg>`;
 }
+function rkCurrentCategory(){
+  return RK_STOCK_CATEGORIES[rkStockCategoryIndex] || 'ALL';
+}
+function rkCategoryRows(){
+  const cat=rkCurrentCategory();
+  return cat==='ALL' ? rkStockRows : rkStockRows.filter(r=>String(r.category||'OTHER').toUpperCase()===cat);
+}
+function rkUpdateCategoryIndicator(){
+  const current=rkCurrentCategory();
+  document.querySelectorAll('#stockCategoryStrip .stock-cat').forEach(el=>{
+    el.classList.toggle('active',el.dataset.cat===current);
+  });
+}
 function rkRenderStock(){
- const grid=document.getElementById('stockGrid'),info=document.getElementById('stockPageInfo'); if(!grid||!info)return;
- if(!rkStockRows.length){
-   grid.innerHTML='<div class="stock-empty">BELUM ADA DATA STOK UNTUK DITAMPILKAN</div>';
-   info.textContent='HALAMAN 1 / 1'; return;
+ const grid=document.getElementById('stockGrid'),
+       info=document.getElementById('stockPageInfo'),
+       totalEl=document.getElementById('stockTotalCount');
+ if(!grid||!info)return;
+
+ if(totalEl)totalEl.textContent=String(rkStockRows.length);
+ rkUpdateCategoryIndicator();
+
+ const rows=rkCategoryRows();
+ const cat=rkCurrentCategory();
+
+ if(!rows.length){
+   grid.innerHTML=`<div class="stock-empty">BELUM ADA STOK PADA KATEGORI ${rkEsc(cat==='ALL'?'SEMUA':cat)}</div>`;
+   info.textContent='HALAMAN 1 / 1';
+   return;
  }
- const total=Math.max(1,Math.ceil(rkStockRows.length/RK_STOCK_PER_PAGE));
+
+ const total=Math.max(1,Math.ceil(rows.length/RK_STOCK_PER_PAGE));
  if(rkStockPage>=total)rkStockPage=0;
- const page=rkStockRows.slice(rkStockPage*RK_STOCK_PER_PAGE,(rkStockPage+1)*RK_STOCK_PER_PAGE);
+ const page=rows.slice(rkStockPage*RK_STOCK_PER_PAGE,(rkStockPage+1)*RK_STOCK_PER_PAGE);
+
  grid.innerHTML=page.map(r=>`
    <div class="stock-card">
      <div class="stock-product-icon">${rkStockIconSvg(r.name)}</div>
      <div class="stock-name">${rkEsc(r.name||'-')}</div>
      <div class="stock-status ${r.available?'ok':'no'}">
-       <span class="dot">${r.available?'✓':'×'}</span>${r.available?'TERSEDIA':'TIDAK TERSEDIA'}
+       <span class="dot">${r.available?'✓':'×'}</span>${r.available?'ADA':'HABIS'}
      </div>
    </div>`).join('');
- info.textContent=`HALAMAN ${rkStockPage+1} / ${total}`;
+
+ const label=cat==='ALL'?'SEMUA':cat;
+ info.textContent=`${label} • HALAMAN ${rkStockPage+1} / ${total}`;
 }
 async function rkLoadStock(){
  try{
@@ -1261,10 +1398,19 @@ setInterval(()=>{
 function rkInitStockMode(){
   rkStockTimer=setInterval(()=>{
     if(currentDisplayMode!=='stock')return;
-    const total=Math.max(1,Math.ceil(rkStockRows.length/RK_STOCK_PER_PAGE));
-    rkStockPage=(rkStockPage+1)%total;
+
+    const rows=rkCategoryRows();
+    const totalPages=Math.max(1,Math.ceil(rows.length/RK_STOCK_PER_PAGE));
+
+    if(rkStockPage < totalPages-1){
+      rkStockPage++;
+    }else{
+      rkStockPage=0;
+      rkStockCategoryIndex=(rkStockCategoryIndex+1)%RK_STOCK_CATEGORIES.length;
+    }
+
     rkRenderStock();
-  },7000);
+  },RK_STOCK_CATEGORY_MS);
 
   rkLoadStock();
   setInterval(rkLoadStock,30000);
@@ -1292,6 +1438,7 @@ if(document.readyState==='loading'){
 
 
 
+
 <div id="stockScreen" aria-hidden="true">
   <div class="stock-pro-header">
     <div class="stock-logo-wrap">
@@ -1311,47 +1458,29 @@ if(document.readyState==='loading'){
     </div>
   </div>
 
-  <div class="stock-nav">
-    <div class="stock-nav-item">
-      <div class="stock-nav-icon">👥</div>
-      <div><div class="stock-nav-title">ANTREAN LAYANAN</div><div class="stock-nav-sub">Panggilan pelanggan</div></div>
-    </div>
-    <div class="stock-nav-item">
-      <div class="stock-nav-icon">📣</div>
-      <div><div class="stock-nav-title">PROMO TERBARU</div><div class="stock-nav-sub">Info & penawaran menarik</div></div>
-    </div>
-    <div class="stock-nav-item active">
-      <div class="stock-nav-icon">◆</div>
-      <div><div class="stock-nav-title">STOK BARANG</div><div class="stock-nav-sub">Cek ketersediaan part & aksesoris</div></div>
-    </div>
-  </div>
-
   <div class="stock-content">
-    <aside class="stock-side">
-      <div class="stock-side-hero"><div class="stock-side-phone"></div></div>
-      <div class="stock-side-title">LENGKAP<br><span>BERKUALITAS</span><br>SIAP PASANG</div>
-      <div class="stock-side-list">
-        <div class="stock-side-row"><span class="stock-side-check">✓</span> LCD</div>
-        <div class="stock-side-row"><span class="stock-side-check">✓</span> BATERAI</div>
-        <div class="stock-side-row"><span class="stock-side-check">✓</span> FLEXIBEL</div>
-        <div class="stock-side-row"><span class="stock-side-check">✓</span> KONEKTOR</div>
-        <div class="stock-side-row"><span class="stock-side-check">✓</span> KAMERA</div>
-        <div class="stock-side-row"><span class="stock-side-check">✓</span> SPEAKER</div>
-        <div class="stock-side-row"><span class="stock-side-check">✓</span> AKSESORIS</div>
-      </div>
-      <div class="stock-side-bottom">↻ SEMUA STOK UPDATE REALTIME</div>
-    </aside>
-
     <main class="stock-main">
       <div class="stock-main-head">
         <div class="stock-title-wrap">
           <div class="stock-box-icon">◆</div>
           <div>
             <div class="stock-main-title">DAFTAR STOK BARANG</div>
-            <div class="stock-main-sub">Pastikan ketersediaan sebelum membeli atau melakukan service</div>
+            <div class="stock-main-sub">Ketersediaan barang ditampilkan bergantian secara otomatis</div>
           </div>
         </div>
-        <div class="stock-note">HANYA STATUS KETERSEDIAAN YANG DITAMPILKAN</div>
+        <div class="stock-total">TOTAL ITEM<strong id="stockTotalCount">0</strong></div>
+      </div>
+
+      <div class="stock-category-strip" id="stockCategoryStrip">
+        <div class="stock-cat active" data-cat="ALL">▦ Semua</div>
+        <div class="stock-cat" data-cat="LCD">▯ LCD</div>
+        <div class="stock-cat" data-cat="BATTERY">▣ Baterai</div>
+        <div class="stock-cat" data-cat="FLEXIBLE">▤ Flexible</div>
+        <div class="stock-cat" data-cat="CONNECTOR">⌁ Konektor</div>
+        <div class="stock-cat" data-cat="CAMERA">◉ Kamera</div>
+        <div class="stock-cat" data-cat="SPEAKER">◌ Speaker</div>
+        <div class="stock-cat" data-cat="ACCESSORY">◆ Aksesoris</div>
+        <div class="stock-cat" data-cat="OTHER">＋ Lainnya</div>
       </div>
 
       <div class="stock-grid" id="stockGrid"></div>
@@ -1372,3 +1501,254 @@ if(document.readyState==='loading'){
 
 </body>
 </html>
+index_3mode_STOK_AUTO_ROTATE.html
+HTML
+SQL_STOK_KATEGORI_OTOMATIS.sql
+Kode
+di aplikasi kenapa malah tidak bisa hapus stok
+
+Karena barang itu masih dipakai sebagai referensi di tabel service_order_items.
+
+Dari pesan error di aplikasi terlihat jelas:
+
+update or delete on table "inventory"
+violates foreign key constraint
+"service_order_items_inventory_id_fkey"
+
+Key is still referenced from table "service_order_items"
+
+Artinya record Oppo a15/A16 di inventory pernah dipakai pada data service/order. PostgreSQL sengaja menolak penghapusan supaya riwayat service tidak rusak.
+
+Solusi paling aman untuk RK CELL: jangan benar-benar DELETE barang yang pernah dipakai transaksi. Lebih baik buat sistem nonaktif/arsip. Tambahkan kolom:
+
+alter table public.inventory
+add column if not exists is_active boolean not null default true;
+
+Lalu saat pengguna menekan Hapus Barang, aplikasi sebenarnya menjalankan:
+
+update public.inventory
+set is_active = false,
+    updated_at = now()
+where id = 'ID_BARANG';
+
+Kemudian daftar stok aplikasi hanya membaca:
+
+select *
+from public.inventory
+where is_active = true;
+
+Barang hilang dari daftar stok aktif, tetapi riwayat service_order_items tetap aman.
+
+Untuk monitor stok yang sedang kita buat, ubah RPC/view supaya hanya menampilkan barang aktif:
+
+...
+from public.inventory i
+where coalesce(i.is_active, true) = true
+order by i.name asc;
+
+Kalau suatu saat ingin mengembalikan barang:
+
+update public.inventory
+set is_active = true
+where id = 'ID_BARANG';
+
+Saya tidak menyarankan ON DELETE CASCADE, karena itu bisa ikut menghapus detail item pada riwayat service ketika barang dihapus. Untuk sistem service seperti RK CELL, metode arsip/nonaktif jauh lebih aman.
+
+Error ini justru membantu—database Anda punya pengaman tambahan chk_source_internal. Artinya untuk baris dengan:
+
+source = internal
+
+database mewajibkan inventory_id tetap terisi. Jadi ketika FK mencoba mengubah inventory_id menjadi NULL, check constraint menolaknya.
+
+Karena SQL sebelumnya memakai BEGIN ... COMMIT, saat terjadi error transaksi tersebut rollback, jadi perubahan sebelumnya tidak setengah jalan.
+
+Sekarang jangan jalankan SQL hapus lain dulu. Kita perlu melihat persis aturan chk_source_internal. Jalankan ini:
+
+select
+  conname,
+  pg_get_constraintdef(oid) as definition
+from pg_constraint
+where conrelid = 'public.service_order_items'::regclass
+  and conname = 'chk_source_internal';
+
+Kemungkinan hasilnya kurang lebih seperti:
+
+CHECK (
+  (source = 'internal' AND inventory_id IS NOT NULL)
+  OR
+  (source = 'external' ...)
+)
+
+Setelah Anda kirim hasilnya, saya akan buat SQL final yang aman.
+
+Kemungkinan solusi akhirnya adalah mengizinkan riwayat lama seperti ini:
+
+source = internal
+inventory_id = NULL
+external_item_name = "Vivo Y17/y12/y15"
+
+Jadi nama barang tetap tersimpan sebagai snapshot, tetapi barang asli di inventory boleh benar-benar dihapus. Kita perlu menyesuaikan chk_source_internal dengan aturan yang tepat, bukan menghapus constraint begitu saja.
+
+Nah, sekarang penyebabnya sudah jelas. Constraint lama memang mewajibkan setiap source = 'internal' memiliki inventory_id. Kita ubah aturannya sedikit: item internal boleh kehilangan inventory_id asal nama barang sudah disimpan sebagai snapshot di external_item_name.
+
+Jalankan SQL final berikut di Supabase. Ini dibuat dari awal karena percobaan sebelumnya gagal dan di-rollback.
+
+begin;
+
+-- =====================================================
+-- RK CELL - INVENTORY DELETE AMAN
+-- Barang boleh benar-benar dihapus,
+-- riwayat service tetap tersimpan.
+-- =====================================================
+
+
+-- 1. Pastikan kolom arsip lama tetap tersedia
+alter table public.inventory
+add column if not exists is_active boolean not null default true;
+
+
+-- =====================================================
+-- 2. MATIKAN SOFT DELETE LAMA
+-- =====================================================
+
+drop trigger if exists trg_inventory_soft_delete
+on public.inventory;
+
+drop function if exists public.inventory_soft_delete();
+
+
+-- =====================================================
+-- 3. SIMPAN NAMA BARANG PADA RIWAYAT YANG SUDAH ADA
+-- =====================================================
+
+update public.service_order_items soi
+set external_item_name = i.name
+from public.inventory i
+where soi.inventory_id = i.id
+  and (
+    soi.external_item_name is null
+    or btrim(soi.external_item_name) = ''
+  );
+
+
+-- =====================================================
+-- 4. PERBAIKI CHECK CONSTRAINT
+-- =====================================================
+-- ATURAN BARU:
+--
+-- source selain internal = bebas seperti sebelumnya
+--
+-- source internal =
+--   inventory_id masih ada
+--   ATAU
+--   nama barang snapshot sudah tersimpan
+-- =====================================================
+
+alter table public.service_order_items
+drop constraint if exists chk_source_internal;
+
+alter table public.service_order_items
+add constraint chk_source_internal
+check (
+  source <> 'internal'
+  or inventory_id is not null
+  or nullif(btrim(external_item_name), '') is not null
+);
+
+
+-- =====================================================
+-- 5. UBAH FOREIGN KEY MENJADI ON DELETE SET NULL
+-- =====================================================
+
+alter table public.service_order_items
+drop constraint if exists service_order_items_inventory_id_fkey;
+
+alter table public.service_order_items
+add constraint service_order_items_inventory_id_fkey
+foreign key (inventory_id)
+references public.inventory(id)
+on delete set null;
+
+
+-- =====================================================
+-- 6. SEBELUM BARANG DIHAPUS,
+--    OTOMATIS SIMPAN NAMANYA KE RIWAYAT
+-- =====================================================
+
+create or replace function public.preserve_inventory_name_before_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+
+  update public.service_order_items
+  set external_item_name = old.name
+  where inventory_id = old.id
+    and (
+      external_item_name is null
+      or btrim(external_item_name) = ''
+    );
+
+  return old;
+
+end;
+$$;
+
+
+drop trigger if exists trg_preserve_inventory_name_before_delete
+on public.inventory;
+
+create trigger trg_preserve_inventory_name_before_delete
+before delete on public.inventory
+for each row
+execute function public.preserve_inventory_name_before_delete();
+
+
+-- =====================================================
+-- 7. BERSIHKAN BARANG YANG SEBELUMNYA SOFT-DELETE
+-- =====================================================
+
+delete from public.inventory
+where is_active = false;
+
+
+commit;
+
+Kalau berhasil akan muncul Success. Setelah itu tutup/buka ulang aplikasi.
+
+Mulai sekarang saat tombol Hapus ditekan di aplikasi:
+
+BARANG DIHAPUS
+      ↓
+Nama barang disalin ke riwayat service
+      ↓
+inventory_id riwayat menjadi NULL
+      ↓
+Data inventory benar-benar dihapus
+      ↓
+Aplikasi    → barang hilang
+Web monitor → barang hilang
+Riwayat     → tetap tersimpan
+
+Contohnya riwayat Vivo Y17/y12/y15 nantinya dapat menjadi:
+
+source             = internal
+inventory_id       = NULL
+external_item_name = Vivo Y17/y12/y15
+qty                = 1
+cost               = 120000
+
+Jadi sekarang NULL pada inventory_id tidak lagi dianggap rusak, selama nama barang historisnya sudah tersimpan. Ini paling sesuai dengan struktur database RK CELL yang Anda tunjukkan.
+
+sekarang berikan file untuk di index
+
+Siap. Ini file monitor terbaru yang sudah saya ubah namanya menjadi index.html, berisi mode ANTREAN • PROMO • STOK BARANG dengan stok auto-rotate.
+
+Download index.html
+
+Tinggal ganti index.html lama di GitHub dengan file ini.
+
+index.html
+HTML
