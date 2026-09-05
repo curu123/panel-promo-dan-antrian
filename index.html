@@ -432,7 +432,7 @@ body[data-theme="light"] .small{
 .tiktok-stage{min-height:0;display:grid;grid-template-columns:minmax(220px,.7fr) minmax(320px,1.6fr) minmax(220px,.7fr);gap:18px;padding:18px 24px}
 .tiktok-side{border:1px solid rgba(255,255,255,.10);border-radius:22px;padding:22px;background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.025));display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
 .tiktok-side .big{font-size:34px;font-weight:1000;line-height:1.05}.tiktok-side .accent{color:#20e9ee}.tiktok-side p{color:#a7b8cc;line-height:1.55;font-size:13px}.tiktok-player-wrap{position:relative;min-width:0;min-height:0;border-radius:26px;overflow:hidden;background:#000;border:1px solid rgba(255,255,255,.14);box-shadow:0 22px 50px rgba(0,0,0,.4)}
-#tiktokFrame{width:100%;height:100%;min-height:420px;border:0;background:#000}.tiktok-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;background:#070d1a;color:#b7c6d9}.tiktok-empty strong{display:block;color:#fff;font-size:30px;margin-bottom:8px}.tiktok-empty small{font-size:13px;line-height:1.6}
+#tiktokFrame{width:100%;height:100%;min-height:420px;border:0;background:#000}.tiktok-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;background:#070d1a;color:#b7c6d9}.tiktok-audio-gate{position:absolute;inset:auto 18px 18px 18px;z-index:5;display:none;align-items:center;justify-content:center;gap:10px;padding:12px 16px;border-radius:14px;background:rgba(5,11,24,.92);border:1px solid rgba(255,255,255,.16);color:#fff;font-weight:900;cursor:pointer;box-shadow:0 12px 28px rgba(0,0,0,.35)}.tiktok-audio-gate.show{display:flex}.tiktok-empty strong{display:block;color:#fff;font-size:30px;margin-bottom:8px}.tiktok-empty small{font-size:13px;line-height:1.6}
 .tiktok-foot{height:58px;display:flex;align-items:center;justify-content:center;gap:16px;border-top:1px solid rgba(255,255,255,.10);color:#c7d5e6;font-size:13px;font-weight:800;letter-spacing:.4px;background:rgba(5,11,24,.94)}
 .tiktok-foot b{color:#20e9ee}.tiktok-type-note{margin-top:12px;padding:8px 12px;border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#9fb2c8;font-size:11px}
 @media(max-width:1000px){.tiktok-stage{grid-template-columns:1fr}.tiktok-side{display:none}.tiktok-head{height:74px}.tiktok-foot{height:48px}#tiktokFrame{min-height:calc(100vh - 140px)}}
@@ -862,17 +862,85 @@ function applyDisplayMode(cfg){
   // QUEUE = tidak ada overlay.
 }
 
+let rkTikTokIsPhoto=false;
+let rkTikTokSlideTimer=null;
+let rkTikTokLastImageIndex=-1;
+let rkTikTokPendingIndex=null;
+let rkTikTokPendingAt=0;
+
 function rkTikTokPostId(url){
   const u=String(url||'').trim();
   const m=u.match(/\/(?:video|photo)\/(\d+)/i) || u.match(/player\/v1\/(\d+)/i);
   return m?m[1]:'';
 }
+function rkTikTokMsg(type,value){
+  const frame=document.getElementById('tiktokFrame');
+  if(!frame||!frame.contentWindow)return;
+  frame.contentWindow.postMessage({type,value,'x-tiktok-player':true},'*');
+}
+function rkTikTokEnableAudio(){
+  rkTikTokMsg('unMute');
+  rkTikTokMsg('play');
+  const gate=document.getElementById('tiktokAudioGate');
+  if(gate)gate.classList.remove('show');
+}
+function rkStartTikTokPhotoRotation(){
+  clearInterval(rkTikTokSlideTimer);
+  if(!rkTikTokIsPhoto)return;
+  rkTikTokLastImageIndex=-1;
+  rkTikTokPendingIndex=0;
+  rkTikTokPendingAt=Date.now();
+  rkTikTokMsg('navigateTo',0);
+  rkTikTokSlideTimer=setInterval(()=>{
+    if(!rkTikTokIsPhoto)return;
+    const now=Date.now();
+    if(rkTikTokPendingIndex!==null && now-rkTikTokPendingAt>1800){
+      // Jika index berikutnya tidak valid (sudah slide terakhir), kembali ke slide pertama.
+      rkTikTokPendingIndex=0;
+      rkTikTokPendingAt=now;
+      rkTikTokMsg('navigateTo',0);
+      return;
+    }
+    const next=Math.max(0,rkTikTokLastImageIndex+1);
+    rkTikTokPendingIndex=next;
+    rkTikTokPendingAt=now;
+    rkTikTokMsg('navigateTo',next);
+  },5000);
+}
+window.addEventListener('message',(event)=>{
+  const d=event.data||{};
+  if(!d['x-tiktok-player'])return;
+  if(d.type==='onPlayerReady'){
+    // Coba aktifkan audio otomatis. Browser/STB tertentu tetap membutuhkan 1 kali sentuhan.
+    rkTikTokMsg('unMute');
+    rkTikTokMsg('play');
+    if(rkTikTokIsPhoto)rkStartTikTokPhotoRotation();
+  }
+  if(d.type==='onImageChange'){
+    const idx=Number(d.value);
+    if(Number.isFinite(idx)){
+      rkTikTokLastImageIndex=idx;
+      rkTikTokPendingIndex=null;
+    }
+  }
+  if(d.type==='onMute' && d.value===true){
+    const gate=document.getElementById('tiktokAudioGate');
+    if(gate)gate.classList.add('show');
+  }
+  if(d.type==='onPlayerError' && d.value && Number(d.value.errorCode)===3002){
+    const gate=document.getElementById('tiktokAudioGate');
+    if(gate)gate.classList.add('show');
+  }
+});
+
 function rkRenderTikTok(cfg){
   const frame=document.getElementById('tiktokFrame');
   const empty=document.getElementById('tiktokEmpty');
   const kindLabel=document.getElementById('tiktokKindLabel');
   const kind=String(cfg?.tiktok_kind||'post').toLowerCase();
   const url=String(cfg?.tiktok_url||'').trim();
+  rkTikTokIsPhoto=/\/photo\//i.test(url);
+  clearInterval(rkTikTokSlideTimer);
   if(kindLabel)kindLabel.textContent=kind==='live'?'● LIVE DARI HP':'POST FOTO / VIDEO';
   if(!frame||!empty)return;
   if(!url){frame.removeAttribute('src');frame.style.display='none';empty.style.display='grid';empty.innerHTML=kind==='live'?'<div><strong>LIVE BELUM DIATUR</strong><small>Mulai LIVE dari HP RK CELL, lalu isi @username atau link LIVE melalui panel admin.</small></div>':'<div><strong>POST BELUM DIPILIH</strong><small>Pilih link foto/video TikTok dari panel admin.</small></div>';return;}
@@ -880,7 +948,7 @@ function rkRenderTikTok(cfg){
   if(kind==='post'){
     const id=rkTikTokPostId(url);
     if(!id){frame.removeAttribute('src');frame.style.display='none';empty.style.display='grid';empty.innerHTML='<div><strong>LINK POST TIDAK VALID</strong><small>Gunakan link post TikTok yang berisi /video/ID atau /photo/ID.</small></div>';return;}
-    src=`https://www.tiktok.com/player/v1/${id}?autoplay=1&loop=1&controls=0&muted=1&description=1&music_info=0&rel=0`;
+    src=`https://www.tiktok.com/player/v1/${id}?autoplay=1&loop=1&controls=1&muted=0&description=1&music_info=1&rel=0`;
   }else{
     // TikTok LIVE tidak dimasukkan ke iframe karena TikTok memblokir halaman LIVE di iframe.
     // Mode LIVE tetap tersimpan; tampilan khusus STB/direct-open akan ditambahkan saat perangkat diuji.
@@ -1183,6 +1251,7 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
     <main class="tiktok-player-wrap">
       <iframe id="tiktokFrame" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
       <div id="tiktokEmpty" class="tiktok-empty"><div><strong>TIKTOK BELUM DIPILIH</strong><small>Pilih POST FOTO/VIDEO atau LIVE dari halaman admin.</small></div></div>
+      <button id="tiktokAudioGate" class="tiktok-audio-gate" type="button" onclick="rkTikTokEnableAudio()">🔊 AKTIFKAN SUARA TIKTOK</button>
     </main>
     <aside class="tiktok-side"><div class="big"><span class="accent">RK CELL</span><br>ON SCREEN</div><p>Admin memilih POST atau LIVE. Monitor/STB tidak memakai kamera dan tidak melakukan streaming ulang.</p><div class="tiktok-type-note">LIVE bergantung dukungan tampilan TikTok pada browser/STB.</div></aside>
   </div>
