@@ -882,11 +882,17 @@ function rkRenderTikTok(cfg){
     if(!id){frame.removeAttribute('src');frame.style.display='none';empty.style.display='grid';empty.innerHTML='<div><strong>LINK POST TIDAK VALID</strong><small>Gunakan link post TikTok yang berisi /video/ID atau /photo/ID.</small></div>';return;}
     src=`https://www.tiktok.com/player/v1/${id}?autoplay=1&loop=1&controls=0&muted=1&description=1&music_info=0&rel=0`;
   }else{
+    // TikTok LIVE tidak dimasukkan ke iframe karena TikTok memblokir halaman LIVE di iframe.
+    // Mode LIVE tetap tersimpan; tampilan khusus STB/direct-open akan ditambahkan saat perangkat diuji.
     let liveUrl=url;
     if(/^@?[A-Za-z0-9._]+$/.test(liveUrl)){
       liveUrl=`https://www.tiktok.com/@${liveUrl.replace(/^@/,'')}/live`;
     }
-    src=liveUrl;
+    frame.removeAttribute('src');
+    frame.style.display='none';
+    empty.style.display='grid';
+    empty.innerHTML='<div><strong>🔴 TIKTOK LIVE AKTIF</strong><small>LIVE berasal dari HP RK CELL. TikTok memblokir LIVE di dalam iframe. Mode pembukaan LIVE langsung akan diaktifkan khusus saat STB digunakan.</small></div>';
+    return;
   }
   if(frame.src!==src)frame.src=src;
   frame.style.display='block';
