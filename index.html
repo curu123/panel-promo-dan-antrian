@@ -825,9 +825,18 @@ function startDisplayModeRealtime(){
   }catch(e){console.warn('Display settings realtime fallback:',e)}
 }
 
-loadDisplayMode();
-startDisplayModeRealtime();
-setInterval(loadDisplayMode,30000);
+function rkInitDisplayMode(){
+  // Elemen PROMO dan STOK sudah selesai dibuat pada tahap ini.
+  loadDisplayMode();
+  startDisplayModeRealtime();
+  setInterval(loadDisplayMode,30000);
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',rkInitDisplayMode,{once:true});
+}else{
+  rkInitDisplayMode();
+}
 
 const DISPLAY_VIEW='service_queue_display_public';
 const DISPLAY_FIELDS='ticket_number,customer_name,status,device_brand,device_model,device_type,complaint,created_at,estimated_done_at,completed_at,final_completed_at,updated_at,final_receipt_printed_at,warranty_terms';
@@ -1021,9 +1030,29 @@ async function rkLoadStock(){
 }
 function rkApplyThreeMode(cfg){ return false; }
 setInterval(()=>{const el=document.getElementById('stockClock');if(el)el.textContent=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1000);
-rkStockTimer=setInterval(()=>{if(currentDisplayMode!=='stock')return;const total=Math.max(1,Math.ceil(rkStockRows.length/RK_STOCK_PER_PAGE));rkStockPage=(rkStockPage+1)%total;rkRenderStock();},7000);
-rkLoadStock();setInterval(rkLoadStock,30000);
-try{sb.channel('rk-stock-public').on('postgres_changes',{event:'*',schema:'public',table:'inventory'},()=>rkLoadStock()).subscribe();}catch(e){}
+function rkInitStockMode(){
+  rkStockTimer=setInterval(()=>{
+    if(currentDisplayMode!=='stock')return;
+    const total=Math.max(1,Math.ceil(rkStockRows.length/RK_STOCK_PER_PAGE));
+    rkStockPage=(rkStockPage+1)%total;
+    rkRenderStock();
+  },7000);
+
+  rkLoadStock();
+  setInterval(rkLoadStock,30000);
+
+  try{
+    sb.channel('rk-stock-public')
+      .on('postgres_changes',{event:'*',schema:'public',table:'inventory'},()=>rkLoadStock())
+      .subscribe();
+  }catch(e){}
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',rkInitStockMode,{once:true});
+}else{
+  rkInitStockMode();
+}
 
 </script>
 <div class="day-summary" id="daySummary">HARI INI • MASUK 0 • PROSES 0 • SELESAI 0 • DIAMBIL 0</div>
@@ -1036,7 +1065,7 @@ try{sb.channel('rk-stock-public').on('postgres_changes',{event:'*',schema:'publi
 
 <div id="stockScreen" aria-hidden="true">
   <div class="stock-top">
-    <div><div class="stock-brand-title">RK CELL • STOK BARANG</div><div class="stock-brand-sub">KETERSEDIAAN BARANG TERKINI</div></div>
+    <div><div class="stock-brand-title">RK CELL • STOK BARANG</div><div class="stock-brand-sub">KETERSEDIAAN BARANG TERKINI • DATA LANGSUNG DARI RK CELL</div></div>
     <div class="stock-clock" id="stockClock">--:--</div>
   </div>
   <div class="stock-grid" id="stockGrid"></div>
