@@ -219,12 +219,33 @@ $('tiktokShowBtn').onclick=async()=>{
     if(!/^https?:\/\//i.test(url)){$('adminStatus').textContent='POST harus menggunakan link TikTok lengkap.';return;}
     if(!/\/(video|photo)\/\d+/i.test(url)){$('adminStatus').textContent='Link POST harus berisi /video/ID atau /photo/ID.';return;}
   }
+
   $('adminStatus').textContent='MENYIMPAN TIKTOK...';
-  const {error}=await sb.from('display_settings').update({
-    mode:'tiktok',tiktok_kind:kind,tiktok_url:url,updated_at:new Date().toISOString()
-  }).eq('id',SETTINGS_ID);
-  if(error){$('adminStatus').textContent='GAGAL: '+error.message;return;}
-  $('adminStatus').textContent='MODE AKTIF: TIKTOK • '+(kind==='live'?'LIVE DARI HP → MONITOR':'POST FOTO / VIDEO');
+  const payload={mode:'tiktok',tiktok_kind:kind,tiktok_url:url,updated_at:new Date().toISOString()};
+  const {error}=await sb.from('display_settings').update(payload).eq('id',SETTINGS_ID);
+  if(error){
+    const msg=String(error.message||'');
+    $('adminStatus').textContent='GAGAL SIMPAN TIKTOK: '+msg+(msg.includes('tiktok_')?' • JALANKAN SQL FIX TIKTOK':'');
+    return;
+  }
+
+  // VERIFIKASI WAJIB. Sebelumnya UPDATE bisa terlihat sukses walau RLS tidak mengubah baris.
+  const {data:check,error:checkError}=await sb.from('display_settings')
+    .select('mode,tiktok_kind,tiktok_url,updated_at')
+    .eq('id',SETTINGS_ID)
+    .maybeSingle();
+
+  if(checkError){
+    $('adminStatus').textContent='GAGAL VERIFIKASI TIKTOK: '+checkError.message+' • JALANKAN SQL FIX TIKTOK';
+    return;
+  }
+  const savedUrl=String(check?.tiktok_url||'').trim();
+  if(!check || check.mode!=='tiktok' || String(check.tiktok_kind||'post')!==kind || savedUrl!==url){
+    $('adminStatus').textContent='TIKTOK BELUM TERSIMPAN • DATABASE/RLS MENOLAK PERUBAHAN. JALANKAN SQL FIX TIKTOK.';
+    return;
+  }
+
+  $('adminStatus').textContent='BERHASIL • MODE TIKTOK AKTIF • '+(kind==='live'?'LIVE DARI HP → MONITOR':'POST FOTO / VIDEO')+' • MONITOR BERUBAH MAKS. 3 DETIK';
 };
 $('tiktokClearBtn').onclick=async()=>{
   const {error}=await sb.from('display_settings').update({
