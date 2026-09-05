@@ -752,16 +752,21 @@ let promoRealtimeChannel=null;
 
 async function loadDisplayMode(){
   try{
-    const {data,error}=await sb
-      .from(DISPLAY_SETTINGS_TABLE)
-      .select('mode,promo_url,promo_fit,updated_at')
-      .eq('id',DISPLAY_SETTINGS_ID)
-      .maybeSingle();
+    const {data,error}=await sb.rpc('get_public_display_state');
     if(error)throw error;
-    applyDisplayMode(data||{mode:'queue'});
+
+    let cfg=data;
+    if(Array.isArray(cfg))cfg=cfg[0]||null;
+
+    if(!cfg || !cfg.mode){
+      console.warn('Display state kosong');
+      return; // jangan paksa kembali ke antrean
+    }
+
+    applyDisplayMode(cfg);
   }catch(e){
-    console.warn('Display mode fallback antrean:',e);
-    applyDisplayMode({mode:'queue'});
+    console.warn('Gagal membaca display state:',e);
+    // PENTING: pertahankan mode terakhir. Jangan fallback otomatis ke queue.
   }
 }
 
@@ -773,6 +778,7 @@ function applyDisplayMode(cfg){
 
   const mode=String(cfg?.mode||'queue').toLowerCase();
   currentDisplayMode=['queue','promo','stock'].includes(mode)?mode:'queue';
+  console.log('[RK DISPLAY MODE]',currentDisplayMode);
 
   // Reset semua overlay terlebih dahulu.
   if(promo){
@@ -829,7 +835,7 @@ function rkInitDisplayMode(){
   // Elemen PROMO dan STOK sudah selesai dibuat pada tahap ini.
   loadDisplayMode();
   startDisplayModeRealtime();
-  setInterval(loadDisplayMode,30000);
+  setInterval(loadDisplayMode,3000);
 }
 
 if(document.readyState==='loading'){
@@ -1026,7 +1032,19 @@ function rkRenderStock(){
  info.textContent=`HALAMAN ${rkStockPage+1} / ${total}`;
 }
 async function rkLoadStock(){
- try{const {data,error}=await sb.from('inventory_public_display').select('id,name,available,updated_at').order('name',{ascending:true});if(error)throw error;rkStockRows=Array.isArray(data)?data:[];rkRenderStock();}catch(e){console.warn('Stock load error',e);}
+ try{
+   const {data,error}=await sb.rpc('get_public_inventory_status');
+   if(error)throw error;
+   rkStockRows=Array.isArray(data)?data:[];
+   rkStockRows.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'id'));
+   rkRenderStock();
+ }catch(e){
+   console.warn('Stock load error',e);
+   const grid=document.getElementById('stockGrid');
+   if(grid && currentDisplayMode==='stock'){
+     grid.innerHTML='<div class="stock-empty">DATA STOK BELUM DAPAT DIMUAT</div>';
+   }
+ }
 }
 function rkApplyThreeMode(cfg){ return false; }
 setInterval(()=>{const el=document.getElementById('stockClock');if(el)el.textContent=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1000);
