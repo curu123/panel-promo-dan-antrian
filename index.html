@@ -766,17 +766,38 @@ async function loadDisplayMode(){
 }
 
 function applyDisplayMode(cfg){
-  if(rkApplyThreeMode(cfg)) return;
-  const screen=$('promoScreen');
+  const promo=$('promoScreen');
+  const stock=document.getElementById('stockScreen');
   const img=$('promoImage');
   const fallback=$('promoFallback');
+
   const mode=String(cfg?.mode||'queue').toLowerCase();
-  currentDisplayMode=mode==='promo'?'promo':'queue';
+  currentDisplayMode=['queue','promo','stock'].includes(mode)?mode:'queue';
+
+  // Reset semua overlay terlebih dahulu.
+  if(promo){
+    promo.classList.remove('active','cover');
+    promo.setAttribute('aria-hidden','true');
+  }
+  if(stock){
+    stock.classList.remove('active');
+    stock.setAttribute('aria-hidden','true');
+  }
+
+  if(currentDisplayMode==='stock'){
+    if(stock){
+      stock.classList.add('active');
+      stock.setAttribute('aria-hidden','false');
+    }
+    rkLoadStock();
+    return;
+  }
 
   if(currentDisplayMode==='promo'){
-    screen.classList.add('active');
-    screen.classList.toggle('cover',String(cfg?.promo_fit||'contain')==='cover');
-    screen.setAttribute('aria-hidden','false');
+    if(!promo)return;
+    promo.classList.add('active');
+    promo.classList.toggle('cover',String(cfg?.promo_fit||'contain')==='cover');
+    promo.setAttribute('aria-hidden','false');
     if(cfg?.promo_url){
       img.src=cfg.promo_url;
       img.style.display='block';
@@ -786,10 +807,10 @@ function applyDisplayMode(cfg){
       img.style.display='none';
       fallback.style.display='block';
     }
-  }else{
-    screen.classList.remove('active','cover');
-    screen.setAttribute('aria-hidden','true');
+    return;
   }
+
+  // QUEUE = tidak ada overlay.
 }
 
 function startDisplayModeRealtime(){
@@ -998,12 +1019,7 @@ function rkRenderStock(){
 async function rkLoadStock(){
  try{const {data,error}=await sb.from('inventory_public_display').select('id,name,available,updated_at').order('name',{ascending:true});if(error)throw error;rkStockRows=Array.isArray(data)?data:[];rkRenderStock();}catch(e){console.warn('Stock load error',e);}
 }
-function rkApplyThreeMode(cfg){
- const stock=document.getElementById('stockScreen'),promo=document.getElementById('promoScreen'),mode=String(cfg?.mode||'queue').toLowerCase();
- currentDisplayMode=['queue','promo','stock'].includes(mode)?mode:'queue';
- if(currentDisplayMode==='stock'){if(promo){promo.classList.remove('active','cover');promo.setAttribute('aria-hidden','true');}stock?.classList.add('active');stock?.setAttribute('aria-hidden','false');rkLoadStock();return true;}
- stock?.classList.remove('active');stock?.setAttribute('aria-hidden','true');return false;
-}
+function rkApplyThreeMode(cfg){ return false; }
 setInterval(()=>{const el=document.getElementById('stockClock');if(el)el.textContent=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1000);
 rkStockTimer=setInterval(()=>{if(currentDisplayMode!=='stock')return;const total=Math.max(1,Math.ceil(rkStockRows.length/RK_STOCK_PER_PAGE));rkStockPage=(rkStockPage+1)%total;rkRenderStock();},7000);
 rkLoadStock();setInterval(rkLoadStock,30000);
