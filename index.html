@@ -1,135 +1,3 @@
-Edit
-Edit
-
-Betul, kalau data inventory berasal dari aplikasi dan aplikasi tidak punya input kategori, jangan paksa ubah aplikasi dulu. Cara paling aman adalah kategori dibuat otomatis di Supabase dari nama barang, sehingga aplikasi tetap bekerja seperti sekarang.
-
-Jadi alurnya:
-
-APLIKASI
-Nama: Baterai Oppo A16
-Stock: 3
-        ↓
-SUPABASE
-kategori otomatis = BATTERY
-        ↓
-MONITOR
-Masuk ke tab BATERAI
-
-Kita bisa buat view publik yang otomatis menentukan kategori dari name, tanpa menambah kolom baru ke tabel inventory dan tanpa mengganggu aplikasi.
-
-Contohnya:
-
-create or replace view public.inventory_public_display as
-select
-  id,
-  name,
-
-  case
-    when lower(name) like '%lcd%'
-      or lower(name) like '%oled%'
-      or lower(name) like '%amoled%'
-      then 'LCD'
-
-    when lower(name) like '%baterai%'
-      or lower(name) like '%battery%'
-      then 'BATTERY'
-
-    when lower(name) like '%flex%'
-      or lower(name) like '%flexible%'
-      then 'FLEXIBLE'
-
-    when lower(name) like '%konektor%'
-      or lower(name) like '%connector%'
-      or lower(name) like '%type-c%'
-      or lower(name) like '%micro usb%'
-      or lower(name) like '%charging port%'
-      then 'CONNECTOR'
-
-    when lower(name) like '%kamera%'
-      or lower(name) like '%camera%'
-      then 'CAMERA'
-
-    when lower(name) like '%speaker%'
-      or lower(name) like '%buzzer%'
-      then 'SPEAKER'
-
-    when lower(name) like '%tempered%'
-      or lower(name) like '%glass%'
-      or lower(name) like '%case%'
-      or lower(name) like '%softcase%'
-      or lower(name) like '%headset%'
-      or lower(name) like '%earphone%'
-      or lower(name) like '%kabel%'
-      or lower(name) like '%charger%'
-      or lower(name) like '%powerbank%'
-      then 'ACCESSORY'
-
-    else 'OTHER'
-  end as category,
-
-  (coalesce(stock,0) > 0) as available,
-
-  updated_at
-
-from public.inventory;
-
-Lalu beri akses:
-
-grant select on public.inventory_public_display
-to anon, authenticated;
-
-Dengan cara ini aplikasi tidak perlu diubah sama sekali. Setiap kali aplikasi memasukkan barang baru, monitor otomatis mencoba menentukan kategorinya dari nama barang.
-
-Contoh:
-
-LCD A5 2020
-→ LCD
-
-Oppo A15 OLED
-→ LCD
-
-Baterai Samsung A12
-→ BATTERY
-
-Flexible On Off Oppo
-→ FLEXIBLE
-
-Konektor Cas Type-C
-→ CONNECTOR
-
-Kamera Depan Vivo Y12
-→ CAMERA
-
-Kalau ada barang yang tidak cocok, otomatis masuk LAINNYA.
-
-Menurut saya ini paling cocok untuk sistem Anda sekarang karena tidak merusak alur aplikasi yang sudah ada. Setelah SQL ini dijalankan, saya bisa lanjut ubah index.html supaya tombol LCD • BATERAI • FLEXIBLE • KONEKTOR • KAMERA • SPEAKER • AKSESORIS • LAINNYA benar-benar memfilter stok.
-
-oke buat di stok , karena hanya menampilkan saja maka tidak ada menu pencaraian oya stok agan bergulir jadi tidak monoton misal bergulir setiap beberapa waktu dan menampilkan semua stok bergantian dan berulang
-
-Sudah saya buat sesuai yang Anda mau.
-
-Sekarang bagian stok:
-
-tidak ada menu pencarian
-kategori dibuat otomatis dari nama barang di Supabase
-tampilan akan berganti otomatis setiap 8 detik
-urutannya: Semua → LCD → Baterai → Flexible → Konektor → Kamera → Speaker → Aksesoris → Lainnya
-kalau satu kategori punya banyak barang, halaman kategori itu akan bergulir dulu sebelum pindah ke kategori berikutnya
-setelah sampai akhir, kembali ke Semua dan berulang terus
-status tetap hanya ADA / HABIS, tanpa jumlah stok
-
-Gunakan file ini:
-
-HTML Stok Auto Rotate
-
-Sebelum upload ke GitHub, rename menjadi index.html.
-
-Lalu jalankan SQL ini sekali di Supabase agar kategori otomatis terbaca dari nama barang:
-
-SQL Kategori Stok Otomatis
-
-Aplikasi input stok Anda tidak perlu diubah sama sekali. 
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -532,153 +400,18 @@ body[data-theme="light"] .small{
 
 
 <style id="rk-stock-mode-style">
-#stockScreen{
-  position:fixed; inset:0; z-index:99998; display:none;
-  background:
-    radial-gradient(circle at 82% 0%,rgba(0,128,255,.17),transparent 30%),
-    linear-gradient(180deg,#04101d 0%,#061626 52%,#03101c 100%);
-  color:#fff; overflow:hidden; font-family:Arial,Helvetica,sans-serif;
-}
-#stockScreen.active{display:grid;grid-template-rows:92px 1fr 54px}
-
-.stock-pro-header{
-  display:grid;grid-template-columns:1.15fr .9fr auto;align-items:center;
-  gap:24px;padding:12px 24px;
-  background:linear-gradient(180deg,rgba(4,15,28,.98),rgba(3,12,22,.96));
-  border-bottom:1px solid rgba(70,148,220,.20);
-  box-shadow:0 10px 28px rgba(0,0,0,.25)
-}
-.stock-logo-wrap{display:flex;align-items:center;gap:16px;min-width:0}
-.stock-logo-mark{
-  width:48px;height:61px;border:3px solid #fff;border-radius:10px;position:relative;
-  box-shadow:0 0 18px rgba(255,255,255,.06)
-}
-.stock-logo-mark:before{
-  content:"";position:absolute;width:17px;height:17px;border:5px solid #fff;
-  border-right-color:transparent;border-radius:50%;left:11px;top:12px;transform:rotate(-35deg)
-}
-.stock-logo-mark:after{
-  content:"";position:absolute;width:5px;height:24px;background:#fff;left:23px;top:27px;
-  border-radius:6px;transform:rotate(35deg)
-}
-.stock-rk{font-size:43px;font-weight:1000;line-height:.9;letter-spacing:-.04em}
-.stock-rk .rk{color:#ff313b}.stock-rk .cell{color:#fff}
-.stock-rk-sub{font-size:12px;font-weight:900;letter-spacing:.08em;margin-top:7px;color:#d8e7f6}
-.stock-tagline{
-  border-left:1px solid rgba(255,255,255,.17);padding-left:24px;
-  font-size:25px;font-style:italic;font-weight:800;color:#fff;white-space:nowrap
-}
-.stock-tagline span{border-bottom:3px solid #ff313b;padding-bottom:4px}
-.stock-head-right{display:flex;align-items:center;gap:14px}
-.stock-live{
-  display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:12px;
-  border:1px solid rgba(71,169,255,.25);background:rgba(10,34,60,.50);
-  font-size:11px;font-weight:900;color:#dcecff;white-space:nowrap
-}
-.stock-live i{width:8px;height:8px;border-radius:50%;background:#40e58a;box-shadow:0 0 10px #40e58a}
-.stock-date-time{
-  min-width:190px;text-align:center;padding:8px 14px;border-radius:14px;
-  background:rgba(5,20,37,.88);border:1px solid #0b7ee6
-}
-.stock-date{font-size:12px;color:#d7e6f8;font-weight:700}
-.stock-clock{font-size:29px;font-weight:1000;margin-top:2px;font-variant-numeric:tabular-nums}
-
-.stock-content{
-  min-height:0;display:flex;flex-direction:column;padding:12px 20px 12px
-}
-.stock-main{
-  min-height:0;flex:1;border:1px solid #173b5f;border-radius:18px;
-  background:linear-gradient(180deg,rgba(7,23,40,.96),rgba(3,13,24,.98));
-  box-shadow:0 14px 34px rgba(0,0,0,.22);
-  padding:14px 16px 12px;display:grid;grid-template-rows:auto auto 1fr auto;gap:10px
-}
-.stock-main-head{
-  display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px
-}
-.stock-title-wrap{display:flex;align-items:center;gap:12px}
-.stock-box-icon{
-  width:46px;height:46px;border-radius:11px;background:linear-gradient(145deg,#0d77ff,#00b5ff);
-  display:grid;place-items:center;font-size:25px;box-shadow:0 0 18px rgba(0,154,255,.20)
-}
-.stock-main-title{font-size:30px;font-weight:1000;letter-spacing:.035em}
-.stock-main-sub{font-size:13px;color:#96aec5;font-weight:700;margin-top:2px}
-.stock-total{
-  height:44px;min-width:112px;border-radius:13px;border:1px solid #315778;background:#0b2137;
-  display:grid;place-items:center;font-size:11px;color:#a8bfd3;font-weight:800
-}
-.stock-total strong{font-size:21px;line-height:1;color:#00a7ff;display:block;margin-top:2px}
-
-.stock-category-strip{
-  display:grid;grid-template-columns:repeat(9,1fr);gap:8px
-}
-.stock-cat{pointer-events:none;
-  height:40px;border-radius:10px;border:1px solid #294a69;background:linear-gradient(180deg,#17324d,#0e2237);
-  display:flex;align-items:center;justify-content:center;gap:7px;color:#dce8f4;font-size:12px;font-weight:900
-}
-.stock-cat.active{
-  background:linear-gradient(135deg,#0b7fff,#00b3ff);border-color:#00b4ff;box-shadow:0 0 18px rgba(0,169,255,.20)
-}
-
-.stock-grid{
-  min-height:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
-  grid-template-rows:repeat(2,minmax(0,1fr));gap:10px;overflow:hidden
-}
-.stock-card{animation:rkStockFade .32s ease both;
-  min-width:0;min-height:0;border:1px solid #d8e1ea;border-radius:13px;
-  background:linear-gradient(180deg,#ffffff 0%,#edf3f7 100%);
-  box-shadow:0 7px 16px rgba(0,0,0,.18);
-  padding:9px 9px 8px;display:grid;grid-template-rows:64px minmax(42px,1fr) 28px;
-  align-items:center;justify-items:center;color:#0c1722;position:relative;overflow:hidden
-}
-.stock-card:before{
-  content:"";position:absolute;inset:0;background:linear-gradient(130deg,rgba(255,255,255,.28),transparent 45%);pointer-events:none
-}
-.stock-product-icon{
-  width:60px;height:58px;display:grid;place-items:center;color:#1d4160
-}
-.stock-product-icon svg{width:52px;height:52px;filter:drop-shadow(0 5px 6px rgba(0,0,0,.15))}
-.stock-name{
-  width:100%;text-align:center;font-size:clamp(13px,.86vw,17px);font-weight:1000;
-  line-height:1.08;text-transform:uppercase;color:#101821;
-  display:flex;align-items:center;justify-content:center;padding:1px 2px
-}
-.stock-status{
-  width:auto;min-width:82px;max-width:100px;
-  text-align:center;padding:4px 10px;border-radius:999px;
-  font-size:clamp(10px,.7vw,12px);font-weight:1000;letter-spacing:.015em;
-  display:flex;align-items:center;justify-content:center;gap:5px
-}
-.stock-status.ok{color:#fff;background:linear-gradient(90deg,#0ac53d,#0fd75c);box-shadow:0 0 10px rgba(16,214,87,.14)}
-.stock-status.no{color:#fff;background:linear-gradient(90deg,#df1f2e,#ff3a46);box-shadow:0 0 10px rgba(255,48,61,.14)}
-.stock-status .dot{
-  display:grid;place-items:center;width:15px;height:15px;border-radius:50%;
-  background:#fff;color:#0cc43f;font-size:10px;font-weight:1000;flex:0 0 auto
-}
-.stock-status.no .dot{color:#df1f2e}
-.stock-empty{
-  grid-column:1/-1;grid-row:1/-1;display:grid;place-items:center;
-  color:#9ab2c9;font-size:24px;font-weight:900;text-align:center
-}
-.stock-main-foot{
-  display:flex;align-items:center;justify-content:space-between;padding-top:1px;
-  color:#a6bad0;font-size:11px;font-weight:900
-}
-.stock-page{color:#fff;background:#0c2a47;border:1px solid #28567d;padding:6px 10px;border-radius:999px}
-
-.stock-footer{
-  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px;
-  padding:0 26px;background:#020913;border-top:1px solid rgba(72,145,212,.18);
-  color:#c6d7e7;font-size:11px;font-weight:900
-}
-.stock-footer-center{font-size:18px;font-style:italic;color:#fff}
-.stock-footer-center span{color:#ff3340}
-.stock-footer-right{text-align:right;color:#9eb5cb}
-
-@keyframes rkStockFade{from{opacity:.15;transform:translateY(7px)}to{opacity:1;transform:none}}
-@media(max-width:1280px){
-  .stock-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
-  .stock-category-strip{grid-template-columns:repeat(5,1fr)}
-}
+#stockScreen{position:fixed;inset:0;z-index:99998;display:none;background:radial-gradient(circle at 78% 0%,rgba(0,138,255,.18),transparent 31%),linear-gradient(180deg,#020b16 0%,#041523 56%,#020b14 100%);color:#fff;overflow:hidden;font-family:Arial,Helvetica,sans-serif}
+#stockScreen.active{display:grid;grid-template-rows:108px 1fr 62px}
+.stock-pro-header{display:grid;grid-template-columns:1.05fr 1.15fr auto;align-items:center;gap:20px;padding:13px 24px 10px;border-bottom:1px solid rgba(41,157,255,.24);background:linear-gradient(180deg,rgba(2,11,22,.99),rgba(3,14,26,.96));box-shadow:0 10px 30px rgba(0,0,0,.28)}
+.stock-logo-wrap{display:flex;align-items:center;gap:13px;min-width:0}.stock-logo-mark{width:57px;height:57px;border-radius:14px;background:linear-gradient(135deg,#ff2936,#ba0713);display:grid;place-items:center;font-size:25px;font-weight:1000;font-style:italic;box-shadow:0 0 20px rgba(255,40,55,.22);border:2px solid rgba(255,255,255,.88)}
+.stock-rk{font-size:41px;font-weight:1000;line-height:.9;letter-spacing:-.055em;font-style:italic}.stock-rk .rk{color:#ff2a36;text-shadow:0 2px 0 #fff}.stock-rk .cell{color:#fff}.stock-rk-sub{font-size:11px;font-weight:900;letter-spacing:.11em;margin-top:7px;color:#d9e7f5}
+.stock-title-center{text-align:center;min-width:0}.stock-title-center strong{display:block;font-size:39px;font-weight:1000;letter-spacing:.02em;line-height:1;background:linear-gradient(90deg,#fff 0%,#fff 34%,#27e7ff 72%,#00a9ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 20px rgba(0,198,255,.08)}.stock-title-center span{display:block;margin-top:7px;font-size:13px;font-weight:900;letter-spacing:.22em;color:#dceafa}
+.stock-head-right{display:flex;align-items:center;gap:11px}.stock-live{display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:12px;border:1px solid rgba(0,178,255,.42);background:rgba(4,35,61,.58);font-size:10px;font-weight:1000;color:#e5f5ff;white-space:nowrap}.stock-live i{width:8px;height:8px;border-radius:50%;background:#29e374;box-shadow:0 0 11px #29e374}.stock-date-time{min-width:176px;text-align:center;padding:7px 12px;border-radius:14px;background:rgba(4,25,44,.9);border:1px solid #0e90ff}.stock-date{font-size:11px;color:#d8e8f8;font-weight:800}.stock-clock{font-size:27px;font-weight:1000;margin-top:2px;font-variant-numeric:tabular-nums}
+.stock-content{min-height:0;padding:12px 18px 10px;display:grid;grid-template-rows:222px 1fr;gap:12px}.stock-hero-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;min-height:0}.stock-hero{position:relative;overflow:hidden;border-radius:20px;border:1px solid rgba(255,255,255,.30);background:linear-gradient(160deg,var(--cat1),var(--cat2));box-shadow:0 12px 28px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.25);padding:13px 10px 11px;display:grid;grid-template-rows:1fr auto auto;place-items:center;color:#fff}.stock-hero:before{content:"";position:absolute;inset:-30% 38% 30% -20%;background:radial-gradient(circle,rgba(255,255,255,.25),transparent 63%);transform:rotate(-20deg)}.stock-hero-icon{position:relative;z-index:1;width:108px;height:105px;display:grid;place-items:center;filter:drop-shadow(0 12px 10px rgba(0,0,0,.28))}.stock-hero-icon svg{width:98px;height:98px;stroke:#fff;stroke-width:2.6}.stock-hero-name{position:relative;z-index:1;font-size:21px;font-weight:1000;letter-spacing:.025em;text-shadow:0 2px 4px rgba(0,0,0,.26)}.stock-hero-state{position:relative;z-index:1;margin-top:7px;padding:7px 14px;border-radius:999px;background:#fff;color:#07315b;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;font-weight:1000;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.18)}.stock-hero-state i{width:17px;height:17px;border-radius:50%;display:grid;place-items:center;background:#0bae3c;color:#fff;font-style:normal;font-size:11px}.stock-hero.empty .stock-hero-state i{background:#ee3342}.stock-hero[data-category="LCD"]{--cat1:#16bfff;--cat2:#0758d7}.stock-hero[data-category="BATTERY"]{--cat1:#16d769;--cat2:#07922f}.stock-hero[data-category="FLEXIBLE"]{--cat1:#ffad1f;--cat2:#e26000}.stock-hero[data-category="CONNECTOR"]{--cat1:#ff4b55;--cat2:#c90919}.stock-hero[data-category="CAMERA"]{--cat1:#a050ff;--cat2:#5a16d4}.stock-hero[data-category="SPEAKER"]{--cat1:#19d4d7;--cat2:#007f8f}
+.stock-columns{min-height:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}.stock-col{min-width:0;min-height:0;border-radius:17px;border:1px solid var(--accent);background:linear-gradient(180deg,rgba(7,27,46,.98),rgba(2,15,27,.98));overflow:hidden;display:grid;grid-template-rows:48px 1fr;box-shadow:0 10px 24px rgba(0,0,0,.21)}.stock-col-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 13px;background:linear-gradient(135deg,var(--head1),var(--head2));font-size:16px;font-weight:1000}.stock-col-head-left{display:flex;align-items:center;gap:8px}.stock-col-mini-icon{width:29px;height:29px;display:grid;place-items:center}.stock-col-mini-icon svg{width:27px;height:27px;stroke:#fff;stroke-width:2.7}.stock-col-arrow{font-size:25px;opacity:.9}.stock-col[data-category="LCD"]{--accent:#0f9eff;--head1:#0d90f5;--head2:#0870d2}.stock-col[data-category="BATTERY"]{--accent:#1ac65d;--head1:#19bd55;--head2:#079837}.stock-col[data-category="FLEXIBLE"]{--accent:#f79413;--head1:#f68b06;--head2:#d96b00}.stock-col[data-category="CONNECTOR"]{--accent:#ef3545;--head1:#ed3041;--head2:#c71425}.stock-col[data-category="CAMERA"]{--accent:#8346ef;--head1:#823df0;--head2:#6121cf}.stock-col[data-category="SPEAKER"]{--accent:#11b7c2;--head1:#10b8c3;--head2:#087f91}
+.stock-col-list{min-height:0;display:grid;grid-template-rows:repeat(5,minmax(0,1fr));padding:5px 10px 7px}.stock-row{min-height:0;display:grid;grid-template-columns:40px minmax(0,1fr);grid-template-rows:1fr auto;column-gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(105,159,199,.16)}.stock-row:last-child{border-bottom:0}.stock-row-icon{grid-row:1/3;width:36px;height:36px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#fff}.stock-row-icon svg{width:30px;height:30px;stroke:currentColor;stroke-width:2.7}.stock-row-name{min-width:0;font-size:clamp(10px,.76vw,14px);font-weight:1000;line-height:1.05;color:#fff;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stock-row-state{width:max-content;margin-top:3px;padding:3px 8px;border-radius:999px;font-size:9px;font-weight:1000;display:flex;align-items:center;gap:4px}.stock-row-state.ok{background:#08bb3d;color:#fff}.stock-row-state.no{background:#ef2f3e;color:#fff}.stock-row-state i{width:12px;height:12px;border-radius:50%;display:grid;place-items:center;background:#fff;color:#0ab73d;font-style:normal;font-size:8px}.stock-row-state.no i{color:#ef2f3e}.stock-row-empty{grid-column:1/-1;display:grid;place-items:center;color:#7f9ab0;font-size:11px;font-weight:900;text-align:center;padding:8px}
+.stock-footer{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:18px;padding:0 26px;background:#020913;border-top:1px solid rgba(72,145,212,.2);color:#d6e5f3;font-size:11px;font-weight:900}.stock-footer-left{display:flex;align-items:center;gap:10px}.stock-footer-badge{width:34px;height:34px;border-radius:9px;background:#e8f4ff;color:#0b3457;display:grid;place-items:center;font-size:19px}.stock-footer-center{padding:8px 28px;border:1px solid #0c85e8;border-radius:999px;background:linear-gradient(180deg,#063760,#062541);font-size:17px;font-style:italic;color:#28d9ff;white-space:nowrap}.stock-footer-right{text-align:right;color:#d4e3f1}.stock-page-mini{display:block;margin-top:2px;color:#7f9fb9;font-size:9px}
+@media(max-width:1280px){.stock-pro-header{grid-template-columns:1fr 1fr auto}.stock-rk{font-size:35px}.stock-title-center strong{font-size:32px}.stock-content{grid-template-rows:196px 1fr}.stock-hero-icon{width:88px;height:86px}.stock-hero-icon svg{width:80px;height:80px}.stock-hero-name{font-size:18px}.stock-row-name{font-size:10px}}
 </style>
 
 
@@ -1294,139 +1027,51 @@ setInterval(()=>{if(!document.hidden&&navigator.onLine)load()},30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){clearReconnect();load(true)}});
 
 let rkStockRows=[],rkStockPage=0,rkStockTimer=null;
-let rkStockCategoryIndex=0;
-const RK_STOCK_CATEGORIES=['ALL','LCD','BATTERY','FLEXIBLE','CONNECTOR','CAMERA','SPEAKER','ACCESSORY','OTHER'];
+const RK_STOCK_CATEGORIES=['LCD','BATTERY','FLEXIBLE','CONNECTOR','CAMERA','SPEAKER'];
 const RK_STOCK_CATEGORY_MS=8000;
-const RK_STOCK_PER_PAGE=14;
+const RK_STOCK_PER_CATEGORY=5;
 function rkEsc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-function rkStockIconSvg(name){
-  const n=String(name||'').toLowerCase();
-  const c='currentColor';
-  if(n.includes('baterai')||n.includes('battery')){
-    return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}" stroke-width="3"><rect x="13" y="12" width="38" height="45" rx="6"/><path d="M25 7h14v5"/><path d="M32 22v24M24 34h16"/></svg>`;
-  }
-  if(n.includes('kamera')||n.includes('camera')){
-    return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}" stroke-width="3"><rect x="10" y="17" width="44" height="34" rx="7"/><circle cx="32" cy="34" r="11"/><path d="M21 17l4-7h14l4 7"/></svg>`;
-  }
-  if(n.includes('speaker')){
-    return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}" stroke-width="3"><path d="M13 26h10l14-11v34L23 38H13z"/><path d="M44 24c5 5 5 11 0 16M49 18c9 9 9 19 0 28"/></svg>`;
-  }
-  if(n.includes('konektor')||n.includes('charger')||n.includes('type-c')||n.includes('cas')){
-    return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}" stroke-width="3"><path d="M19 13v18a13 13 0 0 0 26 0V13"/><path d="M14 13h10M40 13h10"/><path d="M32 44v9M24 53h16"/></svg>`;
-  }
-  if(n.includes('flex')||n.includes('on/off')){
-    return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}" stroke-width="3"><path d="M10 20h44v13H10z"/><path d="M17 33v13h30V33"/><circle cx="20" cy="26.5" r="2"/><circle cx="44" cy="26.5" r="2"/></svg>`;
-  }
-  if(n.includes('sim')){
-    return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}" stroke-width="3"><path d="M18 8h22l10 10v38H18z"/><path d="M25 29h18v18H25zM34 29v18M25 38h18"/></svg>`;
-  }
-  if(n.includes('glass')||n.includes('lcd')||n.includes('screen')||n.includes('display')){
-    return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}" stroke-width="3"><rect x="16" y="5" width="32" height="54" rx="7"/><path d="M27 11h10"/><circle cx="32" cy="52" r="1.5"/></svg>`;
-  }
-  return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}" stroke-width="3"><path d="M12 22l20-11 20 11-20 11z"/><path d="M12 22v22l20 11 20-11V22M32 33v22"/></svg>`;
-}
-function rkCurrentCategory(){
-  return RK_STOCK_CATEGORIES[rkStockCategoryIndex] || 'ALL';
-}
-function rkCategoryRows(){
-  const cat=rkCurrentCategory();
-  return cat==='ALL' ? rkStockRows : rkStockRows.filter(r=>String(r.category||'OTHER').toUpperCase()===cat);
-}
-function rkUpdateCategoryIndicator(){
-  const current=rkCurrentCategory();
-  document.querySelectorAll('#stockCategoryStrip .stock-cat').forEach(el=>{
-    el.classList.toggle('active',el.dataset.cat===current);
-  });
-}
-function rkRenderStock(){
- const grid=document.getElementById('stockGrid'),
-       info=document.getElementById('stockPageInfo'),
-       totalEl=document.getElementById('stockTotalCount');
- if(!grid||!info)return;
-
- if(totalEl)totalEl.textContent=String(rkStockRows.length);
- rkUpdateCategoryIndicator();
-
- const rows=rkCategoryRows();
- const cat=rkCurrentCategory();
-
- if(!rows.length){
-   grid.innerHTML=`<div class="stock-empty">BELUM ADA STOK PADA KATEGORI ${rkEsc(cat==='ALL'?'SEMUA':cat)}</div>`;
-   info.textContent='HALAMAN 1 / 1';
-   return;
+function rkCategoryLabel(cat){return ({LCD:'LCD',BATTERY:'BATERAI',FLEXIBLE:'FLEXIBLE',CONNECTOR:'KONEKTOR',CAMERA:'KAMERA',SPEAKER:'SPEAKER'})[cat]||cat;}
+function rkStockIconSvgByCategory(cat){
+ const c='currentColor';
+ switch(String(cat||'').toUpperCase()){
+  case 'LCD': return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}"><rect x="16" y="5" width="32" height="54" rx="7"/><path d="M27 11h10"/><circle cx="32" cy="52" r="1.5"/></svg>`;
+  case 'BATTERY': return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}"><rect x="15" y="10" width="34" height="47" rx="6"/><path d="M26 6h12v4"/><path d="M35 19L25 34h8l-4 12 11-16h-8z"/></svg>`;
+  case 'FLEXIBLE': return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}"><path d="M14 10h15v12h-7v13h20v-9h8v18H35v-8H15V21H8V10z"/><path d="M18 14h7M42 31h4"/></svg>`;
+  case 'CONNECTOR': return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}"><rect x="12" y="23" width="40" height="20" rx="8"/><path d="M21 27h22M22 38h4m5 0h4m5 0h4"/><path d="M7 33h5m40 0h5"/></svg>`;
+  case 'CAMERA': return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}"><rect x="10" y="17" width="44" height="34" rx="7"/><circle cx="32" cy="34" r="11"/><circle cx="32" cy="34" r="4"/><path d="M21 17l4-7h14l4 7"/></svg>`;
+  case 'SPEAKER': return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}"><rect x="14" y="10" width="36" height="44" rx="7"/><circle cx="32" cy="38" r="10"/><circle cx="32" cy="20" r="4"/></svg>`;
  }
-
- const total=Math.max(1,Math.ceil(rows.length/RK_STOCK_PER_PAGE));
- if(rkStockPage>=total)rkStockPage=0;
- const page=rows.slice(rkStockPage*RK_STOCK_PER_PAGE,(rkStockPage+1)*RK_STOCK_PER_PAGE);
-
- grid.innerHTML=page.map(r=>`
-   <div class="stock-card">
-     <div class="stock-product-icon">${rkStockIconSvg(r.name)}</div>
-     <div class="stock-name">${rkEsc(r.name||'-')}</div>
-     <div class="stock-status ${r.available?'ok':'no'}">
-       <span class="dot">${r.available?'✓':'×'}</span>${r.available?'ADA':'HABIS'}
-     </div>
-   </div>`).join('');
-
- const label=cat==='ALL'?'SEMUA':cat;
- info.textContent=`${label} • HALAMAN ${rkStockPage+1} / ${total}`;
+ return `<svg viewBox="0 0 64 64" fill="none" stroke="${c}"><path d="M12 22l20-11 20 11-20 11z"/><path d="M12 22v22l20 11 20-11V22M32 33v22"/></svg>`;
+}
+function rkRowsForCategory(cat){return rkStockRows.filter(r=>String(r.category||'').toUpperCase()===cat);}
+function rkMaxStockPages(){return Math.max(1,...RK_STOCK_CATEGORIES.map(cat=>Math.ceil(rkRowsForCategory(cat).length/RK_STOCK_PER_CATEGORY)||1));}
+function rkRenderStock(){
+ const hero=document.getElementById('stockHeroGrid'), cols=document.getElementById('stockColumns'), pageInfo=document.getElementById('stockPageInfo');
+ if(!hero||!cols)return;
+ hero.innerHTML=RK_STOCK_CATEGORIES.map(cat=>{
+   const rows=rkRowsForCategory(cat), hasAny=rows.some(r=>r.available), hasRows=rows.length>0;
+   return `<div class="stock-hero ${hasRows?'':'empty'}" data-category="${cat}"><div class="stock-hero-icon">${rkStockIconSvgByCategory(cat)}</div><div class="stock-hero-name">${rkCategoryLabel(cat)}</div><div class="stock-hero-state"><i>${hasAny?'✓':'×'}</i>${hasAny?'ITEM TERSEDIA':hasRows?'ITEM HABIS':'BELUM ADA ITEM'}</div></div>`;
+ }).join('');
+ cols.innerHTML=RK_STOCK_CATEGORIES.map(cat=>{
+   const rows=rkRowsForCategory(cat), total=Math.max(1,Math.ceil(rows.length/RK_STOCK_PER_CATEGORY)), p=rows.length?(rkStockPage%total):0, shown=rows.slice(p*RK_STOCK_PER_CATEGORY,(p+1)*RK_STOCK_PER_CATEGORY);
+   const body=shown.length?shown.map(r=>`<div class="stock-row"><div class="stock-row-icon">${rkStockIconSvgByCategory(cat)}</div><div class="stock-row-name" title="${rkEsc(r.name||'-')}">${rkEsc(r.name||'-')}</div><div class="stock-row-state ${r.available?'ok':'no'}"><i>${r.available?'✓':'×'}</i>${r.available?'ITEM TERSEDIA':'ITEM HABIS'}</div></div>`).join(''):`<div class="stock-row-empty">BELUM ADA ITEM</div>`;
+   return `<section class="stock-col" data-category="${cat}"><div class="stock-col-head"><div class="stock-col-head-left"><div class="stock-col-mini-icon">${rkStockIconSvgByCategory(cat)}</div>${rkCategoryLabel(cat)}</div><div class="stock-col-arrow">›</div></div><div class="stock-col-list">${body}</div></section>`;
+ }).join('');
+ const max=rkMaxStockPages(); if(pageInfo)pageInfo.textContent=`TAMPILAN ${Math.min(rkStockPage+1,max)} / ${max}`;
 }
 async function rkLoadStock(){
- try{
-   const {data,error}=await sb.rpc('get_public_inventory_status');
-   if(error)throw error;
-   rkStockRows=Array.isArray(data)?data:[];
-   rkStockRows.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'id'));
-   rkRenderStock();
- }catch(e){
-   console.warn('Stock load error',e);
-   const grid=document.getElementById('stockGrid');
-   if(grid && currentDisplayMode==='stock'){
-     grid.innerHTML='<div class="stock-empty">DATA STOK BELUM DAPAT DIMUAT</div>';
-   }
- }
+ try{const {data,error}=await sb.rpc('get_public_inventory_status');if(error)throw error;const supported=new Set(RK_STOCK_CATEGORIES);rkStockRows=(Array.isArray(data)?data:[]).filter(r=>supported.has(String(r.category||'').toUpperCase()));rkStockRows.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'id'));rkStockPage=0;rkRenderStock();}
+ catch(e){console.warn('Stock load error',e);const cols=document.getElementById('stockColumns');if(cols&&currentDisplayMode==='stock')cols.innerHTML='<div class="stock-row-empty" style="grid-column:1/-1">DATA STOK BELUM DAPAT DIMUAT</div>';}
 }
 function rkApplyThreeMode(cfg){ return false; }
-setInterval(()=>{
-  const now=new Date();
-  const clock=document.getElementById('stockClock');
-  const date=document.getElementById('stockDate');
-  if(clock)clock.textContent=now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  if(date)date.textContent=now.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'short',year:'numeric'});
-},1000);
+setInterval(()=>{const now=new Date(),clock=document.getElementById('stockClock'),date=document.getElementById('stockDate');if(clock)clock.textContent=now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});if(date)date.textContent=now.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'short',year:'numeric'});},1000);
 function rkInitStockMode(){
-  rkStockTimer=setInterval(()=>{
-    if(currentDisplayMode!=='stock')return;
-
-    const rows=rkCategoryRows();
-    const totalPages=Math.max(1,Math.ceil(rows.length/RK_STOCK_PER_PAGE));
-
-    if(rkStockPage < totalPages-1){
-      rkStockPage++;
-    }else{
-      rkStockPage=0;
-      rkStockCategoryIndex=(rkStockCategoryIndex+1)%RK_STOCK_CATEGORIES.length;
-    }
-
-    rkRenderStock();
-  },RK_STOCK_CATEGORY_MS);
-
-  rkLoadStock();
-  setInterval(rkLoadStock,30000);
-
-  try{
-    sb.channel('rk-stock-public')
-      .on('postgres_changes',{event:'*',schema:'public',table:'inventory'},()=>rkLoadStock())
-      .subscribe();
-  }catch(e){}
+ rkStockTimer=setInterval(()=>{if(currentDisplayMode!=='stock')return;const max=rkMaxStockPages();rkStockPage=(rkStockPage+1)%max;rkRenderStock();},RK_STOCK_CATEGORY_MS);
+ rkLoadStock();setInterval(rkLoadStock,30000);
+ try{sb.channel('rk-stock-public').on('postgres_changes',{event:'*',schema:'public',table:'inventory'},()=>rkLoadStock()).subscribe();}catch(e){}
 }
-
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',rkInitStockMode,{once:true});
-}else{
-  rkInitStockMode();
-}
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',rkInitStockMode,{once:true});}else{rkInitStockMode();}
 
 </script>
 <div class="day-summary" id="daySummary">HARI INI • MASUK 0 • PROSES 0 • SELESAI 0 • DIAMBIL 0</div>
@@ -1442,313 +1087,24 @@ if(document.readyState==='loading'){
 <div id="stockScreen" aria-hidden="true">
   <div class="stock-pro-header">
     <div class="stock-logo-wrap">
-      <div class="stock-logo-mark"></div>
-      <div>
-        <div class="stock-rk"><span class="rk">RK</span> <span class="cell">CELL</span></div>
-        <div class="stock-rk-sub">SERVICE • ACCESSORIES • VOUCHER</div>
-      </div>
+      <div class="stock-logo-mark">RK</div>
+      <div><div class="stock-rk"><span class="rk">RK</span> <span class="cell">CELL</span></div><div class="stock-rk-sub">SERVICE • PART • SOLUSI HP ANDA</div></div>
     </div>
-    <div class="stock-tagline"><span>Solusi HP Anda</span></div>
-    <div class="stock-head-right">
-      <div class="stock-live"><i></i> STOK UPDATE REALTIME</div>
-      <div class="stock-date-time">
-        <div class="stock-date" id="stockDate">--</div>
-        <div class="stock-clock" id="stockClock">--:--:--</div>
-      </div>
-    </div>
+    <div class="stock-title-center"><strong>STOK BARANG</strong><span>UPDATE REALTIME DARI RK CELL</span></div>
+    <div class="stock-head-right"><div class="stock-live"><i></i> REALTIME</div><div class="stock-date-time"><div class="stock-date" id="stockDate">--</div><div class="stock-clock" id="stockClock">--:--:--</div></div></div>
   </div>
 
   <div class="stock-content">
-    <main class="stock-main">
-      <div class="stock-main-head">
-        <div class="stock-title-wrap">
-          <div class="stock-box-icon">◆</div>
-          <div>
-            <div class="stock-main-title">DAFTAR STOK BARANG</div>
-            <div class="stock-main-sub">Ketersediaan barang ditampilkan bergantian secara otomatis</div>
-          </div>
-        </div>
-        <div class="stock-total">TOTAL ITEM<strong id="stockTotalCount">0</strong></div>
-      </div>
-
-      <div class="stock-category-strip" id="stockCategoryStrip">
-        <div class="stock-cat active" data-cat="ALL">▦ Semua</div>
-        <div class="stock-cat" data-cat="LCD">▯ LCD</div>
-        <div class="stock-cat" data-cat="BATTERY">▣ Baterai</div>
-        <div class="stock-cat" data-cat="FLEXIBLE">▤ Flexible</div>
-        <div class="stock-cat" data-cat="CONNECTOR">⌁ Konektor</div>
-        <div class="stock-cat" data-cat="CAMERA">◉ Kamera</div>
-        <div class="stock-cat" data-cat="SPEAKER">◌ Speaker</div>
-        <div class="stock-cat" data-cat="ACCESSORY">◆ Aksesoris</div>
-        <div class="stock-cat" data-cat="OTHER">＋ Lainnya</div>
-      </div>
-
-      <div class="stock-grid" id="stockGrid"></div>
-
-      <div class="stock-main-foot">
-        <div>🛒 STOK DAPAT BERUBAH SEWAKTU-WAKTU</div>
-        <div class="stock-page" id="stockPageInfo">HALAMAN 1 / 1</div>
-      </div>
-    </main>
+    <div class="stock-hero-grid" id="stockHeroGrid"></div>
+    <div class="stock-columns" id="stockColumns"></div>
   </div>
 
   <div class="stock-footer">
-    <div>#RKCell &nbsp; #ServiceHP &nbsp; #PartHP</div>
-    <div class="stock-footer-center">Melayani Sepenuh Hati <span>♡</span></div>
-    <div class="stock-footer-right">RK CELL • CURUP</div>
+    <div class="stock-footer-left"><div class="stock-footer-badge">▣</div><div>STOK SELALU UPDATE<span class="stock-page-mini">Data langsung dari sistem RK CELL</span></div></div>
+    <div class="stock-footer-center">Part Pilihan • Pelayanan Maksimal</div>
+    <div class="stock-footer-right">CEK KETERSEDIAAN SEBELUM KE KONTER<span class="stock-page-mini" id="stockPageInfo">TAMPILAN 1 / 1</span></div>
   </div>
 </div>
 
 </body>
 </html>
-index_3mode_STOK_AUTO_ROTATE.html
-HTML
-SQL_STOK_KATEGORI_OTOMATIS.sql
-Kode
-di aplikasi kenapa malah tidak bisa hapus stok
-
-Karena barang itu masih dipakai sebagai referensi di tabel service_order_items.
-
-Dari pesan error di aplikasi terlihat jelas:
-
-update or delete on table "inventory"
-violates foreign key constraint
-"service_order_items_inventory_id_fkey"
-
-Key is still referenced from table "service_order_items"
-
-Artinya record Oppo a15/A16 di inventory pernah dipakai pada data service/order. PostgreSQL sengaja menolak penghapusan supaya riwayat service tidak rusak.
-
-Solusi paling aman untuk RK CELL: jangan benar-benar DELETE barang yang pernah dipakai transaksi. Lebih baik buat sistem nonaktif/arsip. Tambahkan kolom:
-
-alter table public.inventory
-add column if not exists is_active boolean not null default true;
-
-Lalu saat pengguna menekan Hapus Barang, aplikasi sebenarnya menjalankan:
-
-update public.inventory
-set is_active = false,
-    updated_at = now()
-where id = 'ID_BARANG';
-
-Kemudian daftar stok aplikasi hanya membaca:
-
-select *
-from public.inventory
-where is_active = true;
-
-Barang hilang dari daftar stok aktif, tetapi riwayat service_order_items tetap aman.
-
-Untuk monitor stok yang sedang kita buat, ubah RPC/view supaya hanya menampilkan barang aktif:
-
-...
-from public.inventory i
-where coalesce(i.is_active, true) = true
-order by i.name asc;
-
-Kalau suatu saat ingin mengembalikan barang:
-
-update public.inventory
-set is_active = true
-where id = 'ID_BARANG';
-
-Saya tidak menyarankan ON DELETE CASCADE, karena itu bisa ikut menghapus detail item pada riwayat service ketika barang dihapus. Untuk sistem service seperti RK CELL, metode arsip/nonaktif jauh lebih aman.
-
-Error ini justru membantu—database Anda punya pengaman tambahan chk_source_internal. Artinya untuk baris dengan:
-
-source = internal
-
-database mewajibkan inventory_id tetap terisi. Jadi ketika FK mencoba mengubah inventory_id menjadi NULL, check constraint menolaknya.
-
-Karena SQL sebelumnya memakai BEGIN ... COMMIT, saat terjadi error transaksi tersebut rollback, jadi perubahan sebelumnya tidak setengah jalan.
-
-Sekarang jangan jalankan SQL hapus lain dulu. Kita perlu melihat persis aturan chk_source_internal. Jalankan ini:
-
-select
-  conname,
-  pg_get_constraintdef(oid) as definition
-from pg_constraint
-where conrelid = 'public.service_order_items'::regclass
-  and conname = 'chk_source_internal';
-
-Kemungkinan hasilnya kurang lebih seperti:
-
-CHECK (
-  (source = 'internal' AND inventory_id IS NOT NULL)
-  OR
-  (source = 'external' ...)
-)
-
-Setelah Anda kirim hasilnya, saya akan buat SQL final yang aman.
-
-Kemungkinan solusi akhirnya adalah mengizinkan riwayat lama seperti ini:
-
-source = internal
-inventory_id = NULL
-external_item_name = "Vivo Y17/y12/y15"
-
-Jadi nama barang tetap tersimpan sebagai snapshot, tetapi barang asli di inventory boleh benar-benar dihapus. Kita perlu menyesuaikan chk_source_internal dengan aturan yang tepat, bukan menghapus constraint begitu saja.
-
-Nah, sekarang penyebabnya sudah jelas. Constraint lama memang mewajibkan setiap source = 'internal' memiliki inventory_id. Kita ubah aturannya sedikit: item internal boleh kehilangan inventory_id asal nama barang sudah disimpan sebagai snapshot di external_item_name.
-
-Jalankan SQL final berikut di Supabase. Ini dibuat dari awal karena percobaan sebelumnya gagal dan di-rollback.
-
-begin;
-
--- =====================================================
--- RK CELL - INVENTORY DELETE AMAN
--- Barang boleh benar-benar dihapus,
--- riwayat service tetap tersimpan.
--- =====================================================
-
-
--- 1. Pastikan kolom arsip lama tetap tersedia
-alter table public.inventory
-add column if not exists is_active boolean not null default true;
-
-
--- =====================================================
--- 2. MATIKAN SOFT DELETE LAMA
--- =====================================================
-
-drop trigger if exists trg_inventory_soft_delete
-on public.inventory;
-
-drop function if exists public.inventory_soft_delete();
-
-
--- =====================================================
--- 3. SIMPAN NAMA BARANG PADA RIWAYAT YANG SUDAH ADA
--- =====================================================
-
-update public.service_order_items soi
-set external_item_name = i.name
-from public.inventory i
-where soi.inventory_id = i.id
-  and (
-    soi.external_item_name is null
-    or btrim(soi.external_item_name) = ''
-  );
-
-
--- =====================================================
--- 4. PERBAIKI CHECK CONSTRAINT
--- =====================================================
--- ATURAN BARU:
---
--- source selain internal = bebas seperti sebelumnya
---
--- source internal =
---   inventory_id masih ada
---   ATAU
---   nama barang snapshot sudah tersimpan
--- =====================================================
-
-alter table public.service_order_items
-drop constraint if exists chk_source_internal;
-
-alter table public.service_order_items
-add constraint chk_source_internal
-check (
-  source <> 'internal'
-  or inventory_id is not null
-  or nullif(btrim(external_item_name), '') is not null
-);
-
-
--- =====================================================
--- 5. UBAH FOREIGN KEY MENJADI ON DELETE SET NULL
--- =====================================================
-
-alter table public.service_order_items
-drop constraint if exists service_order_items_inventory_id_fkey;
-
-alter table public.service_order_items
-add constraint service_order_items_inventory_id_fkey
-foreign key (inventory_id)
-references public.inventory(id)
-on delete set null;
-
-
--- =====================================================
--- 6. SEBELUM BARANG DIHAPUS,
---    OTOMATIS SIMPAN NAMANYA KE RIWAYAT
--- =====================================================
-
-create or replace function public.preserve_inventory_name_before_delete()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-
-  update public.service_order_items
-  set external_item_name = old.name
-  where inventory_id = old.id
-    and (
-      external_item_name is null
-      or btrim(external_item_name) = ''
-    );
-
-  return old;
-
-end;
-$$;
-
-
-drop trigger if exists trg_preserve_inventory_name_before_delete
-on public.inventory;
-
-create trigger trg_preserve_inventory_name_before_delete
-before delete on public.inventory
-for each row
-execute function public.preserve_inventory_name_before_delete();
-
-
--- =====================================================
--- 7. BERSIHKAN BARANG YANG SEBELUMNYA SOFT-DELETE
--- =====================================================
-
-delete from public.inventory
-where is_active = false;
-
-
-commit;
-
-Kalau berhasil akan muncul Success. Setelah itu tutup/buka ulang aplikasi.
-
-Mulai sekarang saat tombol Hapus ditekan di aplikasi:
-
-BARANG DIHAPUS
-      ↓
-Nama barang disalin ke riwayat service
-      ↓
-inventory_id riwayat menjadi NULL
-      ↓
-Data inventory benar-benar dihapus
-      ↓
-Aplikasi    → barang hilang
-Web monitor → barang hilang
-Riwayat     → tetap tersimpan
-
-Contohnya riwayat Vivo Y17/y12/y15 nantinya dapat menjadi:
-
-source             = internal
-inventory_id       = NULL
-external_item_name = Vivo Y17/y12/y15
-qty                = 1
-cost               = 120000
-
-Jadi sekarang NULL pada inventory_id tidak lagi dianggap rusak, selama nama barang historisnya sudah tersimpan. Ini paling sesuai dengan struktur database RK CELL yang Anda tunjukkan.
-
-sekarang berikan file untuk di index
-
-Siap. Ini file monitor terbaru yang sudah saya ubah namanya menjadi index.html, berisi mode ANTREAN • PROMO • STOK BARANG dengan stok auto-rotate.
-
-Download index.html
-
-Tinggal ganti index.html lama di GitHub dengan file ini.
-
-index.html
-HTML
