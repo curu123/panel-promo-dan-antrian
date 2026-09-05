@@ -21,6 +21,10 @@ button{font-weight:900;cursor:pointer} button:disabled{opacity:.55}
 .status{padding:11px 12px;border-radius:10px;background:#0d1626;margin-top:10px;font-weight:800;line-height:1.45}
 .hidden{display:none!important}
 @media(max-width:600px){.row{grid-template-columns:1fr}}
+
+.stock-admin-item{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:13px 14px;border:1px solid #2d3d58;border-radius:13px;background:#0d1626}
+.stock-admin-name{font-weight:950;font-size:16px}.stock-admin-code{color:#9fb0c7;font-size:12px;margin-top:4px}.stock-admin-qty{min-width:82px;text-align:center;padding:9px 12px;border-radius:10px;background:#17243a;font-size:18px;font-weight:950}.stock-admin-qty.zero{background:#4a1f28;color:#ffd7dc}
+@media(max-width:600px){#adminCard .row{grid-template-columns:1fr!important}}
 </style>
 </head>
 <body>
@@ -40,9 +44,10 @@ button{font-weight:900;cursor:pointer} button:disabled{opacity:.55}
   </div>
 
   <div class="card hidden" id="adminCard">
-    <div class="row">
-      <button id="queueBtn" class="green">AKTIFKAN ANTREAN</button>
-      <button id="promoBtn" class="red">AKTIFKAN PROMO</button>
+    <div class="row" style="grid-template-columns:repeat(3,1fr)">
+      <button id="queueBtn" class="green">ANTREAN</button>
+      <button id="promoBtn" class="red">PROMO</button>
+      <button id="stockBtn" class="gray">STOK BARANG</button>
     </div>
 
     <label>Pilih File Promo</label>
@@ -97,7 +102,9 @@ async function refreshSession(){
   }
   $('loginCard').classList.add('hidden');
   $('adminCard').classList.remove('hidden');
+  $('stockAdminCard')?.classList.remove('hidden');
   await loadSettings();
+  await loadAdminStock();
 }
 
 $('loginBtn').onclick=async()=>{
@@ -138,6 +145,7 @@ async function setMode(mode){
 }
 $('queueBtn').onclick=()=>setMode('queue');
 $('promoBtn').onclick=()=>setMode('promo');
+$('stockBtn').onclick=()=>setMode('stock');
 
 $('promoFile').onchange=()=>{
   const f=$('promoFile').files[0];
@@ -250,6 +258,22 @@ $('deleteBtn').onclick=async()=>{
 
 sb.auth.onAuthStateChange(()=>refreshSession());
 refreshSession();
+
+let rkAdminStock=[];
+function rkStockEsc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function renderAdminStock(){
+ const q=String($('stockSearch')?.value||'').toLowerCase().trim();
+ const rows=rkAdminStock.filter(r=>!q||String(r.name||'').toLowerCase().includes(q)||String(r.code||'').toLowerCase().includes(q));
+ $('stockAdminList').innerHTML=rows.length?rows.map(r=>`<div class="stock-admin-item"><div><div class="stock-admin-name">${rkStockEsc(r.name||'-')}</div><div class="stock-admin-code">KODE: ${rkStockEsc(r.code||'-')}</div></div><div class="stock-admin-qty ${Number(r.stock||0)<=0?'zero':''}">${Number(r.stock||0)}</div></div>`).join(''):'<div class="muted">Tidak ada barang ditemukan.</div>';
+ $('stockAdminStatus').textContent=`TOTAL ITEM: ${rkAdminStock.length} • DATA DARI SUPABASE`;
+}
+async function loadAdminStock(){
+ try{const {data,error}=await sb.from('inventory').select('id,name,code,stock,updated_at').order('name',{ascending:true});if(error)throw error;rkAdminStock=Array.isArray(data)?data:[];renderAdminStock();}catch(e){$('stockAdminStatus').textContent='Gagal memuat stok: '+(e?.message||e);}
+}
+$('stockSearch')?.addEventListener('input',renderAdminStock);
+try{sb.channel('rk-stock-admin').on('postgres_changes',{event:'*',schema:'public',table:'inventory'},()=>loadAdminStock()).subscribe();}catch(e){}
+setInterval(()=>{if(!$('adminCard').classList.contains('hidden'))loadAdminStock();},30000);
+
 </script>
 </body>
 </html>
