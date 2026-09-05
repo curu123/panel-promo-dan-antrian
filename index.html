@@ -959,7 +959,25 @@ function rkRenderTikTok(cfg){
     frame.removeAttribute('src');
     frame.style.display='none';
     empty.style.display='grid';
-    empty.innerHTML='<div><strong>🔴 TIKTOK LIVE AKTIF</strong><small>LIVE berasal dari HP RK CELL. TikTok memblokir LIVE di dalam iframe. Mode pembukaan LIVE langsung akan diaktifkan khusus saat STB digunakan.</small></div>';
+    empty.innerHTML=`<div><strong>🔴 TIKTOK LIVE AKTIF</strong><small>LIVE berasal dari HP RK CELL. Karena TikTok tidak mengizinkan LIVE ditanam di iframe, monitor akan membuka halaman LIVE TikTok secara langsung.</small><button type="button" id="rkOpenTikTokLiveBtn" style="margin-top:18px;padding:14px 22px;border:0;border-radius:14px;background:#ff3158;color:white;font-weight:1000;font-size:16px;cursor:pointer">BUKA LIVE TIKTOK SEKARANG</button><small id="rkTikTokLiveCountdown" style="margin-top:12px;display:block">Membuka otomatis dalam 5 detik…</small></div>`;
+    const openLive=()=>{
+      try{sessionStorage.setItem('rkTikTokLiveLastOpen:'+liveUrl,String(Date.now()));}catch(e){}
+      window.location.assign(liveUrl);
+    };
+    setTimeout(()=>{const b=document.getElementById('rkOpenTikTokLiveBtn');if(b)b.onclick=openLive;},0);
+    let remain=5;
+    const last=(()=>{try{return Number(sessionStorage.getItem('rkTikTokLiveLastOpen:'+liveUrl)||0)}catch(e){return 0}})();
+    if(Date.now()-last>120000){
+      const timer=setInterval(()=>{
+        remain--;
+        const c=document.getElementById('rkTikTokLiveCountdown');
+        if(c)c.textContent=remain>0?`Membuka otomatis dalam ${remain} detik…`:'Membuka TikTok LIVE…';
+        if(remain<=0){clearInterval(timer);openLive();}
+      },1000);
+    }else{
+      const c=document.getElementById('rkTikTokLiveCountdown');
+      if(c)c.textContent='Tekan tombol di atas untuk membuka LIVE lagi.';
+    }
     return;
   }
   if(frame.src!==src)frame.src=src;
