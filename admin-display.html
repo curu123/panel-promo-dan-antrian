@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RK CELL • Admin Promo</title>
+<title>RK CELL • Admin Display</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box} body{margin:0;background:#0b1220;color:#fff;font-family:Arial,sans-serif}
@@ -30,8 +30,8 @@ button{font-weight:900;cursor:pointer} button:disabled{opacity:.55}
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>RK CELL • ADMIN PROMO</h1>
-    <div class="muted">Sistem sederhana: hanya satu promo aktif. Upload baru otomatis mengganti promo lama. Hapus promo akan menghapus file dari Supabase Storage dan mengembalikan monitor ke ANTREAN.</div>
+    <h1>RK CELL • ADMIN DISPLAY</h1>
+    <div class="muted">Kontrol layar monitor RK CELL: ANTREAN, PROMO, STOK BARANG, atau TIKTOK. TikTok LIVE dilakukan dari HP; web/STB hanya berperan sebagai layar penampil.</div>
   </div>
 
   <div class="card" id="loginCard">
@@ -44,10 +44,11 @@ button{font-weight:900;cursor:pointer} button:disabled{opacity:.55}
   </div>
 
   <div class="card hidden" id="adminCard">
-    <div class="row" style="grid-template-columns:repeat(3,1fr)">
+    <div class="row" style="grid-template-columns:repeat(4,1fr)">
       <button id="queueBtn" class="green">ANTREAN</button>
       <button id="promoBtn" class="red">PROMO</button>
       <button id="stockBtn" class="gray">STOK BARANG</button>
+      <button id="tiktokBtn" style="background:linear-gradient(135deg,#14e8ee,#ff3158);color:white;border:none">TIKTOK</button>
     </div>
 
     <label>Pilih File Promo</label>
@@ -61,6 +62,20 @@ button{font-weight:900;cursor:pointer} button:disabled{opacity:.55}
 
     <button id="uploadBtn" class="primary" style="margin-top:14px">UPLOAD & TAMPILKAN PROMO</button>
     <button id="deleteBtn" class="gray" style="margin-top:10px">HAPUS PROMO</button>
+
+    <div style="height:1px;background:#263650;margin:18px 0"></div>
+    <h2 style="margin:0 0 8px">TIKTOK RK CELL</h2>
+    <div class="muted">POST menampilkan konten TikTok yang sudah dipublikasikan. Untuk LIVE, mulai siaran dari HP RK CELL lalu aktifkan LIVE di sini; monitor/STB hanya menjadi layar penampil. Dukungan LIVE tetap bergantung pada pembatasan browser/TikTok.</div>
+    <label>Jenis Konten TikTok</label>
+    <select id="tiktokKind">
+      <option value="post">POST FOTO / VIDEO</option>
+      <option value="live">LIVE DARI HP → TAMPILKAN DI MONITOR</option>
+    </select>
+    <label>Link / Akun TikTok</label>
+    <input id="tiktokUrl" type="text" placeholder="@rkcellservice atau https://www.tiktok.com/@rkcellservice/live">
+    <div id="tiktokHelp" class="muted" style="margin-top:7px;font-size:12px">LIVE: cukup isi @username atau link /live. POST: gunakan link /video/ID atau /photo/ID.</div>
+    <button id="tiktokShowBtn" style="margin-top:12px;background:linear-gradient(135deg,#14e8ee,#ff3158);color:white;border:none">TAMPILKAN TIKTOK</button>
+    <button id="tiktokClearBtn" class="gray" style="margin-top:10px">HAPUS LINK TIKTOK</button>
 
     <div class="preview">
       <img id="previewImg" style="display:none" alt="Preview promo">
@@ -124,6 +139,8 @@ async function loadSettings(){
   if(error){$('adminStatus').textContent='Error: '+error.message; return;}
   if(data){
     $('promoFit').value=data.promo_fit||'contain';
+    if($('tiktokKind')) $('tiktokKind').value=data.tiktok_kind||'post';
+    if($('tiktokUrl')) $('tiktokUrl').value=data.tiktok_url||'';
     $('adminStatus').textContent='MODE AKTIF: '+String(data.mode||'queue').toUpperCase();
     if(data.promo_url){
       $('previewImg').src=data.promo_url+'?v='+Date.now();
@@ -138,7 +155,7 @@ async function loadSettings(){
 }
 
 async function setMode(mode){
-  const allowed=['queue','promo','stock'];
+  const allowed=['queue','promo','stock','tiktok'];
   if(!allowed.includes(mode))return;
 
   $('adminStatus').textContent='MENGUBAH MODE KE '+mode.toUpperCase()+'...';
@@ -174,6 +191,49 @@ async function setMode(mode){
 $('queueBtn').onclick=()=>setMode('queue');
 $('promoBtn').onclick=()=>setMode('promo');
 $('stockBtn').onclick=()=>setMode('stock');
+$('tiktokBtn').onclick=()=>setMode('tiktok');
+
+
+function updateTikTokHelp(){
+  const live=String($('tiktokKind')?.value||'post')==='live';
+  if($('tiktokHelp')) $('tiktokHelp').textContent=live
+    ? 'LIVE: mulai siaran dari HP terlebih dahulu. Isi @username atau link https://www.tiktok.com/@username/live. Monitor hanya menampilkan siaran.'
+    : 'POST: tempel link TikTok yang berisi /video/ID atau /photo/ID.';
+  if($('tiktokUrl')) $('tiktokUrl').placeholder=live?'@rkcellservice atau https://www.tiktok.com/@rkcellservice/live':'https://www.tiktok.com/@rkcellservice/video/...';
+}
+$('tiktokKind')?.addEventListener('change',updateTikTokHelp);
+setTimeout(updateTikTokHelp,0);
+
+$('tiktokShowBtn').onclick=async()=>{
+  let url=String($('tiktokUrl').value||'').trim();
+  const kind=String($('tiktokKind').value||'post');
+  if(!url){$('adminStatus').textContent='Masukkan link atau akun TikTok terlebih dahulu.';return;}
+  if(kind==='live'){
+    if(/^@?[A-Za-z0-9._]+$/.test(url)){
+      const user=url.replace(/^@/,'');
+      url=`https://www.tiktok.com/@${user}/live`;
+      $('tiktokUrl').value=url;
+    }
+    if(!/^https?:\/\//i.test(url)){$('adminStatus').textContent='Masukkan @username atau link TikTok LIVE yang valid.';return;}
+  }else{
+    if(!/^https?:\/\//i.test(url)){$('adminStatus').textContent='POST harus menggunakan link TikTok lengkap.';return;}
+    if(!/\/(video|photo)\/\d+/i.test(url)){$('adminStatus').textContent='Link POST harus berisi /video/ID atau /photo/ID.';return;}
+  }
+  $('adminStatus').textContent='MENYIMPAN TIKTOK...';
+  const {error}=await sb.from('display_settings').update({
+    mode:'tiktok',tiktok_kind:kind,tiktok_url:url,updated_at:new Date().toISOString()
+  }).eq('id',SETTINGS_ID);
+  if(error){$('adminStatus').textContent='GAGAL: '+error.message;return;}
+  $('adminStatus').textContent='MODE AKTIF: TIKTOK • '+(kind==='live'?'LIVE DARI HP → MONITOR':'POST FOTO / VIDEO');
+};
+$('tiktokClearBtn').onclick=async()=>{
+  const {error}=await sb.from('display_settings').update({
+    tiktok_url:null,tiktok_kind:'post',updated_at:new Date().toISOString()
+  }).eq('id',SETTINGS_ID);
+  if(error){$('adminStatus').textContent='GAGAL HAPUS LINK TIKTOK: '+error.message;return;}
+  $('tiktokUrl').value='';$('tiktokKind').value='post';
+  $('adminStatus').textContent='LINK TIKTOK DIHAPUS';
+};
 
 $('promoFile').onchange=()=>{
   const f=$('promoFile').files[0];
