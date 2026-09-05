@@ -138,10 +138,38 @@ async function loadSettings(){
 }
 
 async function setMode(mode){
-  const {error}=await sb.from('display_settings').upsert({
-    id:SETTINGS_ID,mode,updated_at:new Date().toISOString()
-  });
-  $('adminStatus').textContent=error?'Gagal: '+error.message:'MODE AKTIF: '+mode.toUpperCase();
+  const allowed=['queue','promo','stock'];
+  if(!allowed.includes(mode))return;
+
+  $('adminStatus').textContent='MENGUBAH MODE KE '+mode.toUpperCase()+'...';
+
+  // Baris rk-main-display sudah dibuat oleh SQL setup.
+  const {error}=await sb
+    .from('display_settings')
+    .update({
+      mode,
+      updated_at:new Date().toISOString()
+    })
+    .eq('id',SETTINGS_ID);
+
+  if(error){
+    $('adminStatus').textContent='GAGAL UBAH MODE: '+error.message;
+    return;
+  }
+
+  // Verifikasi supaya Admin tidak mendapat status palsu.
+  const {data:check,error:checkError}=await sb
+    .from('display_settings')
+    .select('mode')
+    .eq('id',SETTINGS_ID)
+    .single();
+
+  if(checkError || check?.mode!==mode){
+    $('adminStatus').textContent='MODE BELUM BERUBAH • JALANKAN SQL FIX 3 MODE';
+    return;
+  }
+
+  $('adminStatus').textContent='MODE AKTIF: '+mode.toUpperCase();
 }
 $('queueBtn').onclick=()=>setMode('queue');
 $('promoBtn').onclick=()=>setMode('promo');
